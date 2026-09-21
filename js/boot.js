@@ -74,7 +74,7 @@
   var bl=$('bLight');
   if(bl){
     bl.textContent='Lighting: '+(lightingOn()?'on':'off');
-    bl.onclick=function(){ try{ localStorage.setItem('fote-light', lightingOn()?'off':'on'); }catch(e){} bl.textContent='Lighting: '+(lightingOn()?'on':'off'); draw(); };
+    bl.onclick=function(){ try{ localStorage.setItem('astra-temple-light', lightingOn()?'off':'on'); }catch(e){} bl.textContent='Lighting: '+(lightingOn()?'on':'off'); draw(); };
   }
 
   loadSprites();

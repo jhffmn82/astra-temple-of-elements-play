@@ -135,10 +135,10 @@ death = function(){
 };
 
 /* ---------------------------------------------------------------- slots */
-function slotKey(s){ return 'fote-save-'+s; }
+function slotKey(s){ return 'astra-temple-save-'+s; }
 function readSlot(s){
   try{
-    var raw = s==='rescue' ? localStorage.getItem('fote-rescue') : localStorage.getItem(slotKey(s));
+    var raw = s==='rescue' ? localStorage.getItem('astra-temple-rescue') : localStorage.getItem(slotKey(s));
     if(!raw) return null; var d=JSON.parse(raw);
     if(s==='rescue') d.summary=d.summary||{}, d.savedAt=d.savedAt||'';
     return d;
@@ -156,7 +156,7 @@ function loadFrom(s){
   try{ saveApply(d); sfx('ui-click'); }
   catch(e){ console.error(e); alert('That save could not be loaded: '+(e.message||e)); }
 }
-function deleteSlot(s){ try{ localStorage.removeItem(s==='rescue' ? 'fote-rescue' : slotKey(s)); }catch(e){} }
+function deleteSlot(s){ try{ localStorage.removeItem(s==='rescue' ? 'astra-temple-rescue' : slotKey(s)); }catch(e){} }
 function slotSummary(d){
   if(!d) return '<span class="c-info">Empty</span>';
   var s=d.summary||{}, when=d.savedAt ? new Date(d.savedAt) : null;

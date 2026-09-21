@@ -67,7 +67,7 @@ function blitTile(o, px, py, alpha){
 }
 
 /* dynamic lighting can be switched off from the sandbox (Light field) */
-function lightingOn(){ try { return localStorage.getItem('fote-light')!=='off'; } catch(e){ return true; } }
+function lightingOn(){ try { return localStorage.getItem('astra-temple-light')!=='off'; } catch(e){ return true; } }
 
 /* the colour behind each condition's icon: light where the art is dark, deep where the art is pale */
 var STATUS_CHIP = {burn:'#FFC27A', chill:'#BFE4F0', frozen:'#DCF2FF', root:'#C8E0A0', stun:'#FFE9A8', fear:'#C8B4E0',
