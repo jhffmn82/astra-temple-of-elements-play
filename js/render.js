@@ -437,6 +437,16 @@ function drawCharacter(e, px, py, opts){
     var target=TS*(e.base.art||0.9)*(e.big?1.25:1), s2=target/Math.max(box[3], box[2]*0.8);
     var w2=c2*s2, h2=c2*s2, feet=(box[1]+box[3]);
     var dx2=px+TS/2-(box[0]+box[2]/2)*s2, dy2=py+TS*0.97-feet*s2;
+    /* Tier-two reference art has a single pose: give it a restrained breath,
+       attack compression and recoil without altering simulation state. */
+    if(e.base.elementTier && !ANIM.reduce && e.state!=='asleep'){
+      var msNow=performance.now(), age2=e._clip?msNow-e._clip.t0:9999;
+      var action2=e._clip&&e._clip.name==='attack'&&age2>=0&&age2<540?Math.sin(age2/540*Math.PI):0;
+      var pulse2=Math.sin(msNow/330+(e.id||0))*.012;
+      var sy2=1+pulse2-action2*.08, sx2=1+action2*.05;
+      dx2=px+TS/2+(dx2-px-TS/2)*sx2;w2*=sx2;
+      dy2=py+TS*.97+(dy2-py-TS*.97)*sy2;h2*=sy2;
+    }
     var rect2=placementRect(dx2,dy2,w2,h2);dx2=rect2.x;dy2=rect2.y;w2=rect2.w;h2=rect2.h;
     ctx.save(); ctx.globalAlpha=opts.alpha===undefined?1:opts.alpha; ctx.imageSmoothingEnabled=true;
     if(opts.flip){ ctx.translate(px+TS/2,0); ctx.scale(-1,1); ctx.translate(-(px+TS/2),0); }

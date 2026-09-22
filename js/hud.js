@@ -16,10 +16,10 @@
     '#mid .bar{height:20px}',
     '#mid .bar span{font-size:12.5px;padding:0 7px}',
     /* the chips fit one row under the bars: short meters, favor shown as a number only */
-    '#hud2{flex-wrap:nowrap;gap:5px;font-size:12.5px;color:var(--ink);justify-content:space-between}',
-    '#hud2 .chip{padding:2px 7px 2px 4px;gap:4px;white-space:nowrap}',
+    '#hud2{flex-wrap:wrap;gap:5px;font-size:12.5px;color:var(--ink);justify-content:flex-start;min-width:0;max-width:100%}',
+    '#hud2 .chip{padding:2px 7px 2px 4px;gap:4px;white-space:nowrap;flex:0 0 auto;box-sizing:border-box}',
     '#hud2 .hunger{width:52px}',
-    '#hud2 .faithchip{gap:5px;min-width:0;flex:0 1 auto}',
+    '#hud2 .faithchip{gap:5px;min-width:max-content;flex:0 0 auto}',
     '#hud2 .faithchip .meter{width:40px;flex:0 1 40px;min-width:14px}',
     '#hud2 .motechip{gap:3px;font-size:11.5px}',
     '#hud2 .motechip .dot{margin-right:1px}',

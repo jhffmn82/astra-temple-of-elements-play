@@ -373,7 +373,7 @@ castAt = function(x,y){
     if(summonCount()>=2){ log('You already command two summons.','c-info'); return false; }
     beginCast(A);
     var sp=spellPower(A), m2=spawn('emberling',x,y);
-    m2.foe=false; m2.ally=true; m2.state='ally'; m2.name='Living Flame'; m2.livingFlame=true; m2.rangedAlly=6; m2.noXp=true; m2.t=player.t;
+    m2.kind='emberling'; m2.base=MONSTERS.emberling; m2.foe=false; m2.ally=true; m2.state='ally'; m2.name='Living Flame'; m2.livingFlame=true; m2.rangedAlly=6; m2.noXp=true; m2.t=player.t;
     m2.maxhp=m2.hp=Math.round(20*sp); m2.dmg=[Math.round(4*sp), Math.round(8*sp)]; m2.life=20;
     explosionFx(x,y);
     var land=spellRoll(A);

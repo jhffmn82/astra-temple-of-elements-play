@@ -78,6 +78,8 @@ function saveApply(data){
   else throw new Error('Not a Forge of the Elements save.');
   SAVE_KEYS.forEach(function(k){ if(g[k]!==undefined) window[k]=g[k]; });
   if(typeof repairWallMemorials==='function')repairWallMemorials();
+  if(typeof refreshCavernResidents==='function')refreshCavernResidents();
+  if(typeof refreshEncounterTuning==='function')refreshEncounterTuning();
   /* everything derived or visual is rebuilt rather than restored */
   rng=mulberry32(Number.isInteger(data.rngState)?data.rngState:((worldSeed||1) ^ (turn*2654435761))>>>0);
   fx=[]; PARTS.length=0; aiming=null; LAST_HIT=null;

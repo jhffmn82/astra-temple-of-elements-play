@@ -48,23 +48,33 @@ function loadFile(name, cb){
     })
     .catch(function(){ finish(null); });
 }
+var SFX_ALIASES={
+  'shaman-attack':'shaman-cast','shaman-death':'goblin-death','shaman-alert':'goblin-alert',
+  'skeleton-attack':'skeleton-rattle','skeleton-alert':'skeleton-rattle',
+  'mimic-attack':'brute-attack','mimic-death':'brute-death','mimic-alert':'mimic-reveal',
+  'warchief-attack':'brute-attack','warchief-alert':'warchief-roar',
+  'elementaling-attack':'magic-missile','elementaling-alert':'elementaling-appear',
+  'rat-alert':'rat-attack','bat-alert':'bat-attack','brute-alert':'brute-attack','slime-alert':'slime-attack'
+};
 var SFX_LAST={},SFX_VOICES=[],SFX_STEP=0;
 function sfx(name, opts){
   if(!AUDIO.ctx || AUDIO.muted || !name) return;
-  var now=performance.now(); if(SFX_LAST[name] && now-SFX_LAST[name]<40) return; SFX_LAST[name]=now;
+  var now=performance.now();
   opts=opts||{};
   /* game sounds follow the animation queue: a swing sounds when the swing plays, not when the key was pressed */
-  var at = opts.at || (name.indexOf('ui-')!==0 && typeof fxClock==='number' ? Math.max(now, fxClock) : now);
-  var delay=Math.max(0, (at-now)/1000);
-  var file=name==='step-stone' ? ['step-stone','step-stone-1','step-stone-3','step-stone-2'][SFX_STEP++%4] : name;
-  var foley=/^(step-|swing$|miss$|hit-|parry$|block$|arrow-hit$)/.test(name);
+  var at = opts.at===undefined ? (name.indexOf('ui-')!==0 && typeof fxClock==='number' ? Math.max(now, fxClock) : now) : opts.at;
+  var alert=/-alert$/.test(name), group=alert?'creature-alert':name;
+  if(SFX_LAST[group]!==undefined && Math.abs(at-SFX_LAST[group])<(alert?350:40))return;
+  SFX_LAST[group]=at;
+  var file=name==='step-stone' ? ['step-stone','step-stone-1','step-stone-3','step-stone-2'][SFX_STEP++%4] : (SFX_ALIASES[name]||name);
   loadFile(file, function(buf){
     if(AUDIO.muted || performance.now()>at+500)return; // Never replay stale impacts after slow decoding.
     var c=AUDIO.ctx, t=c.currentTime+Math.max(0,(at-performance.now())/1000);
     if(buf){
-      var s=c.createBufferSource(); s.buffer=buf; s.playbackRate.value=opts.rate||(foley?1:(0.94+Math.random()*0.12));
+      var s=c.createBufferSource(); s.buffer=buf; s.playbackRate.value=opts.rate||1;
       while(SFX_VOICES.length>=24){var old=SFX_VOICES.shift();try{old.stop();}catch(e){}}
-      var g=c.createGain(); g.gain.value=opts.vol===undefined?1:opts.vol; s.connect(g); g.connect(AUDIO.sfxBus); if(name.indexOf('step-')!==0)g.connect(AUDIO.verb);
+      var g=c.createGain(); g.gain.value=(opts.vol===undefined?1:opts.vol)*(alert?.55:1); s.connect(g); g.connect(AUDIO.sfxBus);
+      if(/^(fire|ice|lightning|earth|light|shadow|magic|cast|shrine|pray|summon|heal|forge|wrath)/.test(name))g.connect(AUDIO.verb);
       SFX_VOICES.push(s);s.onended=function(){var i=SFX_VOICES.indexOf(s);if(i>=0)SFX_VOICES.splice(i,1);s.disconnect();g.disconnect();};s.start(t);
     } else synth(name, t, opts);
   });

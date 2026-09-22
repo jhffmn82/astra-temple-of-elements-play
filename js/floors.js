@@ -36,6 +36,8 @@ function restoreFloor(n, at){
   delete RUN.floorStash[n];
   if(floorMeta && floorMeta.shrineGod) RUN.shrineGod=floorMeta.shrineGod;
   floorNo = n;
+  if(typeof refreshCavernResidents==='function')refreshCavernResidents();
+  if(typeof refreshEncounterTuning==='function')refreshEncounterTuning();
   if(typeof SURF_CACHE!=='undefined') SURF_CACHE.key=null;
   ents.forEach(function(e){ e._lx=undefined; e._ly=undefined; e.t=player.t; });
   fx=[]; PARTS.length=0; aiming=null;
