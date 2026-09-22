@@ -54,7 +54,7 @@ function tryMove(dx,dy){
   if(!walkable(nx,ny)) return;
   player.x=nx; player.y=ny; player.movedThisTurn=true;
   if(gAt(nx,ny)===G_GRASS){ setG(nx,ny,G_SHORT); sfx('step-grass'); }
-  else if(t===WATER) sfx('step-water',{vol:0.35}); else sfx('step-stone',{vol:0.35});
+  else if(t===WATER) sfx('step-water',{vol:0.8}); else sfx('step-stone',{vol:0.8});
   stepOn(); endTurn();
 }
 /* close an open door next to you: Shift+C closes every empty adjacent door, right-click closes one */

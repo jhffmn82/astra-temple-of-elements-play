@@ -1,6 +1,7 @@
 /* Scene score shares the HUD's encounter predicate. Existing score and effects are preserved. */
 var ASTRA_SCORE=['crypt','caverns','underdark','plane-fire','plane-water','plane-air','plane-earth','plane-light','plane-shadow','boss-morty','boss-maw','boss-matron'];
 window.AUDIO_FILES=(window.AUDIO_FILES||[]).concat(ASTRA_SCORE.map(function(k){return 'music-'+k;}));
+['door-close','trap-gas','skeleton-death'].forEach(function(n){if(window.AUDIO_FILES.indexOf(n)<0)window.AUDIO_FILES.push(n);});
 function explorationScore(){
   if(floorMeta && floorMeta.plane)return 'plane-'+floorMeta.plane;
   if(floorMeta && floorMeta.forge)return 'forge';

@@ -281,9 +281,9 @@ function attack(att, def, mult, label){
   if(att===player) setClip(player, ranged ? 'ranged' : 'melee');
   else setClip(att, 'attack');
   var tSwing = Math.max(performance.now(), fxClock);   /* the release or swing frame, after the clip's windup */
-  if(ranged){ boltFx(att.x,att.y,def.x,def.y,'phys',{arrow:true}); sfx('bow-shot',{at:tSwing}); }
-  else { lungeFx(att, def.x, def.y); sfx('swing',{at:tSwing}); }
-  if(att!==player && att.base.sfx) sfx(att.base.sfx+'-attack',{at:tSwing});
+  if(ranged){ boltFx(att.x,att.y,def.x,def.y,'phys',{arrow:true,silentHit:true}); sfx('bow-shot',{at:tSwing}); }
+  else { lungeFx(att, def.x, def.y); if(att===player || !att.base.sfx)sfx('swing',{at:tSwing}); }
+  if(!ranged && att!==player && att.base.sfx) sfx(att.base.sfx+'-attack',{at:tSwing});
   if(def===player && att.foe) ch=hostileHitChance(ch);
   if(def===player && player.parry && dist(att,def)<=1 && combatRoll(player.parry,true)){
     log('You parry '+att.name+'.','c-good'); sfx('parry'); floatText(def.x,def.y,'parry','miss');
@@ -554,7 +554,7 @@ function useAbility(i){
   }
   if(A.kind==='melee2'){
     var m=nearestFoe(1); if(!m){ log('Nothing adjacent to strike.','c-info'); return; }
-    player.mp-=costOf(A); sfx('double-strike'); attack(player,m,1,A.name); if(m.hp>0) attack(player,m,1,A.name);
+    player.mp-=costOf(A); attack(player,m,1,A.name); if(m.hp>0) attack(player,m,1,A.name);
     endTurn(); return;
   }
   if(A.kind==='self'){ if(castSelf(key, A)===false) return; endTurn(); return; }
