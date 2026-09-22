@@ -243,6 +243,30 @@ if(_ptSparklePack) ptSparkle = function(p, X, Y, W, H, alpha){ if(p.name==='pt-c
    converted props (barrels to urns, the dungeon's bone scatter) slip through. */
 function packLight(x, y, col, r, s){ floorMeta.planeLights=floorMeta.planeLights||[]; floorMeta.planeLights.push({x:x, y:y, col:col, r:r, s:s}); }
 function packWallAt(x, y){ return inb(x,y) && isWallLike(at(x,y)) && at(x,y)!==DOOR; }
+/* Corridors carved after room decoration can leave a wall memorial on floor.
+   Repair deterministically, including old saves, without moving gameplay objects. */
+function repairWallMemorials(){
+  var changed=false;
+  props.slice().forEach(function(p){
+    if(!p.wall || !/^(wall-plaque|wall-niche)$/.test(p.name) || isWallLike(at(p.x,p.y)))return;
+    var ox=p.x,oy=p.y,best=null,score=Infinity;
+    for(var dy=-2;dy<=2;dy++)for(var dx=-2;dx<=2;dx++){
+      var x=ox+dx,y=oy+dy,d=Math.abs(dx)+Math.abs(dy);
+      if(!inb(x,y)||at(x,y)!==WALL||propAt(x,y)||!inb(x,y+1)||isWallLike(at(x,y+1)))continue;
+      if(d<score){best={x:x,y:y};score=d;}
+    }
+    var lights=floorMeta&&floorMeta.planeLights;
+    if(best){
+      p.x=best.x;p.y=best.y;
+      if(lights)lights.forEach(function(l){if(l.x===ox&&Math.abs(l.y-(oy+.9))<.001){l.x=best.x;l.y=best.y+.9;}});
+    }else{
+      props.splice(props.indexOf(p),1);
+      if(lights)floorMeta.planeLights=lights.filter(function(l){return !(l.x===ox&&Math.abs(l.y-(oy+.9))<.001);});
+    }
+    rebuildPropGrid();changed=true;
+  });
+  return changed;
+}
 function packFloorFree(x, y){ return inb(x,y) && freeCell(x,y) && !nearDoor(x,y) && !(typeof isOozeAt==='function' && isOozeAt(x,y)); }
 function packWallSide(x, y){ return [[1,0],[-1,0],[0,1],[0,-1]].some(function(o){ var t=at(x+o[0],y+o[1]); return isWallLike(t) && !isDoorish(t); }); }
 var PACK_BIG = /^(sarc|tomb-|dais-sarcophagus|grave-monument|stairs-wide|rune-stone-|sun-dais|pt-outcrop)/;

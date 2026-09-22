@@ -30,6 +30,7 @@ function stashFloor(){
 function restoreFloor(n, at){
   var s=RUN.floorStash[n]; if(!s) return false;
   FLOOR_KEYS.forEach(function(k){ if(s[k]!==undefined) window[k]=s[k]; });
+  if(typeof repairWallMemorials==='function')repairWallMemorials();
   ents = s.ents.concat([player]);
   player.keys = {iron:s.keys.iron, crystal:s.keys.crystal};
   delete RUN.floorStash[n];

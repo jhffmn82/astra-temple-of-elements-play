@@ -3,6 +3,8 @@
  * browser, so a floor transition never exposes the progressive flat placeholders.
  */
 (function(){
+  var baseGenerate=generate;
+  generate=function(){var result=baseGenerate.apply(this,arguments);repairWallMemorials();return result;};
   var previousMap=null, previousMeta=null, baseDraw=draw;
   draw=function(){
     var changed=previousMap!==map || previousMeta!==floorMeta;

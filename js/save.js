@@ -77,6 +77,7 @@ function saveApply(data){
   else if(data.format==='fote-rescue-1') g=saveDecode(data.globals);   /* one id space across every global, so decode them together */
   else throw new Error('Not a Forge of the Elements save.');
   SAVE_KEYS.forEach(function(k){ if(g[k]!==undefined) window[k]=g[k]; });
+  if(typeof repairWallMemorials==='function')repairWallMemorials();
   /* everything derived or visual is rebuilt rather than restored */
   rng=mulberry32(Number.isInteger(data.rngState)?data.rngState:((worldSeed||1) ^ (turn*2654435761))>>>0);
   fx=[]; PARTS.length=0; aiming=null; LAST_HIT=null;
