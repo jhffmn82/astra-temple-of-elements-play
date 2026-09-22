@@ -29,6 +29,14 @@ function cursorFor(kind){
 /* ---------------------------------------------------------------- what a click on a tile means */
 function tileAt(ev){ var r=cv.getBoundingClientRect(); return {x:camX+Math.floor((ev.clientX-r.left+camOX)/TS), y:camY+Math.floor((ev.clientY-r.top+camOY)/TS)}; }
 function knownTile(x,y){ return inb(x,y) && (revealAll || seen[idxOf(x,y)]); }
+/* Player travel can cross a gap while Floating (or carried by Air 3).
+   Keep world walkability unchanged for grounded actors and floor generation. */
+function travelWalkable(x,y){
+  if(walkable(x,y)) return true;
+  if(!inb(x,y) || at(x,y)!==CHASM || !player) return false;
+  if(!(player.levitate>0 || (typeof aff==='function' && aff('air')>=3))) return false;
+  var p=propAt(x,y); return !(p && p.b);
+}
 function useTile(t){ return t===DOOR || t===CHEST || t===SHRINE || t===FORGE || t===LOCKED || t===SEALED || t===ICEDOOR || t===THORNS || t===TOLL || (t===EXIT && !floorMeta.exitOpen); }
 function clickSpellReady(foe){
   var k=player.clickSpell; if(!k || player.abilities.indexOf(k)<0) return false;
@@ -59,7 +67,7 @@ function clickIntent(x, y){
   if(t===DOOR || t===OPEN || t===LOCKED || t===SEALED || t===ICEDOOR || t===THORNS || t===TOLL) return {kind:'door'};
   if(useTile(t) || (propAt(x,y) && propAt(x,y).lever)) return {kind:'use'};
   if(items.some(function(it){ return it.x===x && it.y===y && it.kind!=='heart' && it.kind!=='managlobe'; })) return {kind:'grab'};
-  if(passable(x,y) || t===OPEN) return {kind:'move'};
+  if(travelWalkable(x,y) || passable(x,y) || t===OPEN) return {kind:'move'};
   return null;
 }
 
@@ -76,7 +84,7 @@ function travelPath(tx, ty, stopAdjacent){
       if(!dx && !dy) continue; var nx=x+dx, ny=y+dy; if(!inb(nx,ny)) continue; var ni=idxOf(nx,ny);
       if(prev[ni]>=0 || !knownTile(nx,ny)) continue;
       var t=at(nx,ny), isGoal = ni===goal;
-      var ok = walkable(nx,ny) || t===DOOR || t===OPEN || (isGoal && (useTile(t) || t===EXIT));
+      var ok = travelWalkable(nx,ny) || t===DOOR || t===OPEN || (isGoal && (useTile(t) || t===EXIT));
       if(!ok || (knownTrap[ni] && !isGoal)) continue;
       if(!isGoal && ents.some(function(e){ return e!==player && e.x===nx && e.y===ny && !e.ally; })) continue;
       prev[ni]=i; q.push(ni);
