@@ -30,7 +30,8 @@ function toggleMute(){ AUDIO.muted=!AUDIO.muted; if(AUDIO.master) AUDIO.master.g
 function toggleMusic(){ AUDIO.musicOn=!AUDIO.musicOn; if(AUDIO.musicBus) AUDIO.musicBus.gain.setTargetAtTime(AUDIO.musicOn?AUDIO.vol.music:0, AUDIO.ctx.currentTime, 0.3); audioSave(); return AUDIO.musicOn; }
 
 /* ---- file-backed playback with synth fallback ---- */
-var AUDIO_LOADING={},AUDIO_MUSIC_LRU=[];
+var AUDIO_LOADING={},AUDIO_MUSIC_LRU=[],AUDIO_MUSIC_REQUEST=0;
+function musicGain(kind){return ['title','dungeon','forge','boss','victory'].includes(kind)?Math.pow(10,-3/20):1;}
 function loadFile(name, cb){
   if(AUDIO.files[name]) return cb(AUDIO.files[name]);
   if(AUDIO.missing[name]) return cb(null);
@@ -56,7 +57,8 @@ function sfx(name, opts){
   var at = opts.at || (name.indexOf('ui-')!==0 && typeof fxClock==='number' ? Math.max(now, fxClock) : now);
   var delay=Math.max(0, (at-now)/1000);
   loadFile(name, function(buf){
-    var c=AUDIO.ctx, t=c.currentTime+delay;
+    if(AUDIO.muted || performance.now()>at+500)return; // Never replay stale impacts after slow decoding.
+    var c=AUDIO.ctx, t=c.currentTime+Math.max(0,(at-performance.now())/1000);
     if(buf){
       var s=c.createBufferSource(); s.buffer=buf; s.playbackRate.value=opts.rate||(0.94+Math.random()*0.12);
       while(SFX_VOICES.length>=24){var old=SFX_VOICES.shift();try{old.stop();}catch(e){}}
@@ -70,7 +72,7 @@ function sfx(name, opts){
 function envGain(t, a, d, peak){ var g=AUDIO.ctx.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(peak||0.5,t+a); g.gain.exponentialRampToValueAtTime(0.0001,t+a+d); return g; }
 function tone(t, type, f1, f2, dur, vol, dest){
   var c=AUDIO.ctx, o=c.createOscillator(); o.type=type; o.frequency.setValueAtTime(f1,t); if(f2) o.frequency.exponentialRampToValueAtTime(Math.max(20,f2), t+dur);
-  var g=envGain(t, Math.min(0.01,dur*0.2), dur, vol||0.3); o.connect(g); g.connect(dest||AUDIO.sfxBus); g.connect(AUDIO.verb); o.start(t); o.stop(t+dur+0.05);
+  var g=envGain(t, Math.min(0.01,dur*0.2), dur, vol||0.3); o.connect(g); g.connect(dest||AUDIO.sfxBus); g.connect(AUDIO.verb); trackSynth(o,[g]); o.start(t); o.stop(t+dur+0.05);
 }
 var NOISE=null;
 function noise(t, dur, vol, fType, f1, f2, q){
@@ -79,7 +81,11 @@ function noise(t, dur, vol, fType, f1, f2, q){
   var s=c.createBufferSource(); s.buffer=NOISE; var f=c.createBiquadFilter(); f.type=fType||'lowpass'; f.frequency.setValueAtTime(f1||1200,t);
   if(f2) f.frequency.exponentialRampToValueAtTime(Math.max(30,f2), t+dur); f.Q.value=q||0.8;
   var g=envGain(t, Math.min(0.008,dur*0.15), dur, vol||0.3); s.connect(f); f.connect(g); g.connect(AUDIO.sfxBus); g.connect(AUDIO.verb);
-  s.start(t, Math.random()); s.stop(t+dur+0.05);
+  trackSynth(s,[f,g]);s.start(t, Math.random()); s.stop(t+dur+0.05);
+}
+function trackSynth(s,nodes){
+  while(SFX_VOICES.length>=24){var old=SFX_VOICES.shift();try{old.stop();}catch(e){}}
+  SFX_VOICES.push(s);s.onended=function(){var i=SFX_VOICES.indexOf(s);if(i>=0)SFX_VOICES.splice(i,1);s.disconnect();nodes.forEach(function(n){n.disconnect();});};
 }
 function arp(t, notes, step, type, vol){ notes.forEach(function(n,i){ tone(t+i*step, type||'triangle', n, 0, step*2.2, vol||0.18); }); }
 var ELEM_SYNTH = {
@@ -163,17 +169,17 @@ function synth(name, t, opts){
 function playMusic(kind){
   if(!AUDIO.ctx){ AUDIO.pendingMusic=kind; return; }
   if(AUDIO.musicKind===kind) return;
-  stopMusic(); AUDIO.musicKind=kind;
+  stopMusic(); AUDIO.musicKind=kind;var request=++AUDIO_MUSIC_REQUEST;
   loadFile('music-'+kind, function(buf){
-    if(AUDIO.musicKind!==kind) return;
+    if(AUDIO.musicKind!==kind || request!==AUDIO_MUSIC_REQUEST) return;
     var c=AUDIO.ctx;
     if(buf){
-      var s=c.createBufferSource(); s.buffer=buf; s.loop=true; var g=c.createGain(); g.gain.setValueAtTime(0,c.currentTime); g.gain.linearRampToValueAtTime(1,c.currentTime+2);
+      var s=c.createBufferSource(); s.buffer=buf;s.loop=true; var g=c.createGain(); g.gain.setValueAtTime(0,c.currentTime); g.gain.linearRampToValueAtTime(musicGain(kind),c.currentTime+2);
       s.connect(g); g.connect(AUDIO.musicBus);s.onended=function(){s.disconnect();g.disconnect();}; s.start(); AUDIO.music={stop:function(){ g.gain.cancelScheduledValues(c.currentTime);g.gain.setTargetAtTime(0,c.currentTime,.25); s.stop(c.currentTime+1.1); }};
     } else AUDIO.music=generativeMusic(kind);
   });
 }
-function stopMusic(){ if(AUDIO.music){ try{ AUDIO.music.stop(); }catch(e){} AUDIO.music=null; } AUDIO.musicKind=null; }
+function stopMusic(){ AUDIO_MUSIC_REQUEST++;if(AUDIO.music){ try{ AUDIO.music.stop(); }catch(e){} AUDIO.music=null; } AUDIO.musicKind=null; }
 function generativeMusic(kind){
   var c=AUDIO.ctx, out=c.createGain(); out.gain.value=0; out.gain.linearRampToValueAtTime(1, c.currentTime+3); out.connect(AUDIO.musicBus);
   var wet=c.createGain(); wet.gain.value=0.6; out.connect(AUDIO.verb);

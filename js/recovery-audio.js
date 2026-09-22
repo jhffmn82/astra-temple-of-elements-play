@@ -36,13 +36,14 @@ function ambienceForScene(){
   if(floorMeta && floorMeta.plane==='water')return 'amb-water';
   return 'amb-dungeon';
 }
+var AMBIENCE_REQUEST=0;
 function syncAmbience(name){
   if(!AUDIO.ctx || AUDIO.ambienceKind===name)return;
-  AUDIO.ambienceKind=name;
+  AUDIO.ambienceKind=name;var request=++AMBIENCE_REQUEST;
   if(AUDIO.ambience){AUDIO.ambience.stop();AUDIO.ambience=null;}
   if(!name)return;
   loadFile(name,function(buf){
-    if(!buf || AUDIO.ambienceKind!==name)return;
+    if(!buf || AUDIO.ambienceKind!==name || request!==AMBIENCE_REQUEST)return;
     var c=AUDIO.ctx,s=c.createBufferSource(),g=c.createGain();s.buffer=buf;s.loop=true;
     g.gain.setValueAtTime(0,c.currentTime);g.gain.linearRampToValueAtTime(.16,c.currentTime+2);
     s.connect(g);g.connect(AUDIO.musicBus);s.onended=function(){s.disconnect();g.disconnect();};s.start();
