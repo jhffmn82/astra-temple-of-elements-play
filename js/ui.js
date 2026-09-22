@@ -507,6 +507,8 @@ function weaponCard(w, worn){
     '<div class="row"><span>Hands</span><b>'+(w.hands||1)+'</b></div>'+
     (w.range?'<div class="row"><span>Range</span><b>'+(w.range+(player.rangeBonus||0))+'</b></div>':'')+
     (w.enchant?'<div class="row"><span>Enchant</span><b style="color:'+AFF_COL[w.enchant]+'">'+cap(w.enchant)+'</b></div><div class="hint">'+(typeof enchantLive==='function' ? enchantLive('weapon', w.enchant) : ENCHANT_TEXT.weapon[w.enchant])+'</div>':'')+
+    (w.divine?'<div class="row"><span>Invoke &amp; prayer strength</span><b>+'+Math.round(w.divine*100)+'%</b></div>':'')+
+    (w.divine?'<div class="row"><span>Beneficial prayer duration</span><b>+'+((w.plus||0)>=3?2:1)+' turns</b></div>':'')+
     '<div class="hint">'+(w.note||'')+(worn?'':' &middot; click to equip')+'</div>';
 }
 function armorCard(a, worn){
@@ -525,7 +527,7 @@ function bagCard(it){
   if(!it) return '';
   if(it.kind==='weapon') return weaponCard(it.data);
   if(it.kind==='armor') return armorCard(it.data);
-  if(it.kind==='off') return '<div class="nm">'+gearName(it.data)+'</div><div class="hint">'+(it.data.note||'')+'</div>';
+  if(it.kind==='off') return it.data.weapon?weaponCard(it.data)+'<div class="hint">Off-hand strike: 60% damage.</div>':'<div class="nm">'+gearName(it.data)+'</div><div class="hint">'+(it.data.note||'')+'</div>';
   if(it.kind==='sigil'){ var k=sigilKnown[it.data.use]; return '<div class="nm">'+it.name+'</div><div class="hint">'+(k?SIGILS[it.data.use].desc:'Unidentified. Use it to learn what it does.')+'</div>'; }
   if(it.kind==='food'){ var f=FOODS[it.data.food]; return '<div class="nm">'+f.name+'</div><div class="hint">'+(f.desc ? f.desc+' Also eases hunger.' : 'Eat to stave off hunger'+(f.heal?' and heal a little':'')+'.')+'</div>'; }
   return '<div class="nm">'+it.name+'</div>';
@@ -561,7 +563,7 @@ function inspectHTML(mx,my){
   if(it){
     if(it.kind==='weapon') return weaponCard(it.it);
     if(it.kind==='armor') return armorCard(it.it);
-    if(it.kind==='off') return '<div class="nm">'+gearName(it.it)+'</div><div class="hint">'+(it.it.note||'')+'</div>';
+    if(it.kind==='off') return bagCard({kind:'off',data:it.it});
     return '<div class="nm">'+cap(itemLabel(it))+'</div><div class="hint">'+(it.kind==='sigil'&&!sigilKnown[it.use]?'Unidentified sigil.':it.kind==='mote'?'Fuse, enchant or craft with it at the Forge.':'')+'</div>';
   }
   var p=propAt(mx,my);
@@ -576,13 +578,13 @@ function inspectHTML(mx,my){
   }
   var tr=feats.filter(function(f){ return f.x===mx && f.y===my && (f.found||revealAll); })[0];
   if(tr) return '<div class="nm">'+trapName(tr.kind)+' trap</div><div class="hint">Walk around it.</div>';
-  var t=at(mx,my), g=gAt(mx,my);
+  var t=at(mx,my);
+  /* Map cards belong to things you can inspect or use, not terrain. */
+  if([2,3,4,5,7,9,10,11,12,13,14,18,19,20].indexOf(t)<0) return '';
   var label=TILE_NAMES[t]||'Floor';
   if(t===SHRINE) label='Shrine to '+GODS[RUN.shrineGod].name;
   if(typeof PORTAL!=='undefined' && t===PORTAL && floorMeta.portal && typeof PLANE_TITLE!=='undefined') label='Portal to '+PLANE_TITLE[floorMeta.portal];
-  var gname={1:'Tall grass: blocks sight, burns fast',2:'Trampled grass',3:'Ash',4:'Puddle',5:'Blood',6:'Scorch mark',7:'Moss',8:'Scattered bones',9:'Ice',10:'Uneven stones: a draft blows here',11:'Web'}[g];
-  if(typeof cryptShrooms==='function' && cryptShrooms() && (g===1||g===2)) gname = g===1 ? 'Glowing mushrooms: squash underfoot, burn fast' : 'Squashed mushrooms';
-  return '<div class="nm">'+label+'</div>'+(gname?'<div class="row"><span>'+gname+'</span></div>':'')+
+  return '<div class="nm">'+label+'</div>'+
     (TILE_HINTS[t]?'<div class="hint">'+TILE_HINTS[t]+'</div>':'')+
     '<div class="row"><span>'+(vis[idxOf(mx,my)]?'In sight':'From memory')+'</span><b>'+mx+','+my+'</b></div>';
 }

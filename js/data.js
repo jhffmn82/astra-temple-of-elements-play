@@ -46,7 +46,7 @@ var WEAPONS = {
   bow:      W('Short Bow',[3,8],5,2,{range:6, note:'range 6; weak up close', icon:'item-bow'}),
   staff:    W('Oak Staff',[3,6],0,2,{note:'the most spell damage and +1 spell range', spell:0.20, icon:'item-staff'}),
   spear:    W('Spear',[5,9],5,2,{note:'reach: attacks 2 tiles away in a line', reach:2, icon:'item-spear'}),
-  censer:   W('Bone Censer',[3,6],0,1,{note:'+15% Invoke and prayer strength', light:true, divine:0.15, icon:'item-censer'})
+  censer:   W('Ceremonial Knife',[3,6],0,1,{note:'+15% Invoke and prayer strength', light:true, divine:0.15, icon:'item-censer'})
 };
 var ARMORS = {
   robe:    {name:'Cloth Robe', armor:0, eva:5,  weight:'cloth',  note:'no penalty', icon:'item-robe', kind:'armor'},

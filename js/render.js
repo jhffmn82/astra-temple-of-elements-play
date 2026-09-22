@@ -13,6 +13,9 @@ function hash2(x,y,s){ var h=(x*374761393 + y*668265263 + (s||0)*2147483647)|0; 
 
 /* ---- sprite lookups ---- */
 function objArt(group, name){
+  if(name==='item-censer'||name==='held-censer'){group='knife';name='ceremonial-knife';}
+  if(group==='structures'&&name==='stairs-up'&&AS.map&&AS.map.stairs)group='stairs';
+  if(group==='props'&&name==='weapon-rack'&&AS.map&&AS.map.rack)group='rack';
   var g=AS.map && AS.map[group]; if(!g || !g.items[name]) return null;
   var img=atl('map-'+group+'.png'); if(!img) return null;
   var b=g.items[name];
@@ -950,7 +953,7 @@ function draw(){
     atTile(rp.x,rp.y,function(px0,py0){
       var px=px0+off[0]+shakeOf(e), py=py0+off[1]-rp.hop*TS*0.14 - (e.base.flying ? TS*0.12 + (ANIM.reduce?0:Math.sin(now/180+e.id)*TS*0.04) : 0);
       ctx.globalAlpha=0.35; ctx.fillStyle='#000'; ctx.beginPath(); ctx.ellipse(px0+TS/2,py0+TS*0.9,TS*0.26*(e.base.art||0.9),TS*0.09,0,0,7); ctx.fill(); ctx.globalAlpha=1;
-      var flip = player.x < e.x;
+      var flip = e.ally && typeof e.facingLeft==='boolean' ? e.facingLeft : player.x < e.x;
       if(e.base && e.base.artLeft) flip = !flip;   /* art painted facing left (goblin) */
       if(!drawCharacter(e, px, py, {flip:flip, flash:flashOf(e), breath:breathOf(e)})){
         var bb=breathOf(e)*TS*0.6;
@@ -979,14 +982,20 @@ function draw(){
       /* 2026-09-20: Justin - "we need some art for conditions and not just a black placeholder symbol". The icons
          were drawn straight onto the scene, so a dark one over a dark creature read as a black box. Each sits on a
          small chip of its own colour now, with a dark rim, so it reads against anything. */
-      ['burn','chill','frozen','root','stun','fear','blind','poison','web','slow','bleed'].forEach(function(k){
-        if(!e.st[k]) return;
+      (typeof statusList==='function'?statusList(e):[]).forEach(function(status){
+        var k=status.k;
         var col=STATUS_CHIP[k]||'#C8C0B4', cx=ix+TS*0.1, cy=py0-TS*0.3+TS*0.15, rr=TS*0.115;
         ctx.save();
         ctx.fillStyle='rgba(10,8,6,0.85)'; ctx.beginPath(); ctx.arc(cx, cy, rr*1.25, 0, 7); ctx.fill();
         ctx.fillStyle=col; ctx.beginPath(); ctx.arc(cx, cy, rr, 0, 7); ctx.fill();
         ctx.restore();
-        if(!drawObj(objArt('icons','st-'+k), cx-TS/2, cy-TS/2, {fit:0.26})) mark(k.charAt(0), cx, cy, '#120F0D');
+        if(!drawObj(objArt('icons',status.icon||'st-'+k), cx-TS/2, cy-TS/2, {fit:0.26})){
+          ctx.save();
+          ctx.fillStyle='#120F0D'; ctx.font='600 '+Math.max(7,Math.round(TS*0.2))+'px "IBM Plex Mono",monospace';
+          ctx.textAlign='center'; ctx.textBaseline='middle';
+          ctx.fillText(k.charAt(0).toUpperCase(),cx,cy);
+          ctx.restore();
+        }
         ix+=TS*0.24;
       });
     });

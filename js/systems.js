@@ -504,12 +504,14 @@ function shootAt(e){
 /* ---------------------------------------------------------------- turn loop */
 function endTurn(){
   if(player.hp<=0) return;
-  if(player.hidden>0 && !(player.hidden>(player._hidPrev||0))) player.hidden--;   /* fresh this turn: skip the first count */
+  if(typeof WORLD_TICK==='undefined' && player.hidden>0 && !(player.hidden>(player._hidPrev||0))) player.hidden--;
   player._hidPrev=player.hidden;
   tickStatus(player);
   if(player.hp<=0){ heroicResolve(); if(player.hp<=0){ death(); return; } }
   var cost = player.movedThisTurn ? moveCost() : actCost(player);
+  if(player.tombed)cost=100;
   player.lastAttack=false;
+  if(cost<=0){player.movedThisTurn=false;return;}
   player.t += cost;
   player.movedThisTurn=false;
   turn++; RUN.turns++;
@@ -519,6 +521,7 @@ function endTurn(){
      9. One that is new or was just raised skips its first count; everything else counts as before. */
   var changed=false, bprev=player._buffPrev||{};
   for(var b in player.buffs){
+    if(typeof WORLD_TICK!=='undefined')continue;
     if(!(player.buffs[b]>0)) continue;
     if(player.buffs[b] > (bprev[b]||0)) continue;                 /* fresh this turn */
     player.buffs[b]--;
@@ -529,7 +532,7 @@ function endTurn(){
   player._buffPrev=Object.assign({}, player.buffs);
   if(changed) derive(player);
   var levFresh = player.levitate>(player._levPrev||0);
-  if(player.levitate>0 && !levFresh){ player.levitate--; if(player.levitate===0){ log('Your feet touch the ground again.','c-info'); if(at(player.x,player.y)===CHASM) fallIntoChasm(); } }
+  if(typeof WORLD_TICK==='undefined' && player.levitate>0 && !levFresh){ player.levitate--; if(player.levitate===0){ log('Your feet touch the ground again.','c-info'); if(at(player.x,player.y)===CHASM) fallIntoChasm(); } }
   player._levPrev=player.levitate;
   /* hunger */
   var hungerRate = cost/100 * (player.race==='gloomling' ? 0.8 : 1);
@@ -538,7 +541,8 @@ function endTurn(){
   if(player.hunger<=0 && turn%5===0){ player.hp-=1; floatText(player.x,player.y,'1','phys'); if(turn%25===0) log('You are starving!','c-you'); }
   /* the world moves */
   refreshPlayerDistance();
-  ents.slice().forEach(function(e){
+  if(typeof worldRunActors==='function')worldRunActors(player.t-cost,player.t);
+  else ents.slice().forEach(function(e){
     if(!e.foe && !e.ally) return;
     var guard=0;
     while(e.t < player.t && guard++ < 4 && ents.indexOf(e)>=0 && player.hp>0) (e.ally ? allyAct : aiAct)(e);
@@ -553,7 +557,7 @@ function endTurn(){
   var hpRate = (0.20 + 0.02*Math.max(0,player.stats.vit-10)) / 100;   /* slower: a full refill is ~500 turns at VIT 10 */
   if(hasP('resilient') && player.hp < player.maxhp/2) hpRate *= 2;
   if(bodyArmor(player).enchant==='light') hpRate *= 1 + 0.5*enchantScale('light');
-  if(hasGod('grumbok')) hpRate *= 1 + 0.25*godRank();
+  if(hasGod('grumbok')) hpRate *= 1 + 0.20*godRank();
   if(hasGod('glimmer')) hpRate *= 1 + 0.10*godRank();
   if(player.hunger<=0 || player.st.poison || player.st.rot) hpRate=0;   /* Rot (Grave Bloat) stops regeneration */
   if(seesFoe) hpRate=0;                                                 /* wounds do not close while something hunts you */

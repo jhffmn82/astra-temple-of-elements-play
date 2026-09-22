@@ -57,10 +57,10 @@ useAbility=function(i){
   if(key!=='temper' && key!=='unholyaura')return _useAbilityRecovery(i);
   if((player.favor||0)<8){log('Not enough Favor (8 required).','c-info');return;}
   player.favor-=8;setClip(player,'cast');
-  if(key==='temper'){player.buffs.temper=12;derive(player);log('Temper: +2 base damage and +4 Armour for 12 turns.','c-good');sfx('forge-enchant');}
+  if(key==='temper'){player.buffs.temper=divineDuration(12);derive(player);log('Temper: +2 base damage and +4 Armour for 12 turns.','c-good');sfx('forge-enchant');}
   else {
-    var div=1+(player.weapon.divine||0)+((player.off&&player.off.divine)||0)+0.03*Math.max(0,player.stats.foc-10);
-    player.st.aura={t:8,d:Math.round((5+godRank())*div)};
+    var div=divineStrength()+0.03*Math.max(0,player.stats.foc-10);
+    player.st.aura={t:divineDuration(8),d:Math.round((5+godRank())*div)};
     log('Unholy Aura surrounds you.','c-good');sfx('shadow-cast');endTurn();
   }
   updateUI();
@@ -107,7 +107,7 @@ castAt=function(x,y){
   var path=spearPath(player.x,player.y,x,y);if(!path.length)return false;
   player.favor-=5;aiming=null;setClip(player,'cast');sfx('shadow-cast');
   var end=path[path.length-1];boltFx(player.x,player.y,end.x,end.y,'dark');
-  path.forEach(function(p){ents.slice().forEach(function(e){if(e.foe&&e.x===p.x&&e.y===p.y && combatRoll(hitChance(player.acc+10,evaOf(e)),true)){spellHit(e,BONE_SPEAR,Math.round(sDMG(roll(10,16))*spellPower(BONE_SPEAR)),'dark');finishHit(e);}});});
+  path.forEach(function(p){ents.slice().forEach(function(e){if(e.foe&&e.x===p.x&&e.y===p.y && combatRoll(hitChance(player.acc+10,evaOf(e)),true)){spellHit(e,BONE_SPEAR,Math.round(sDMG(roll(10,16))*spellPower(BONE_SPEAR)*divineStrength()),'dark');finishHit(e);}});});
   endTurn();return true;
 };
 

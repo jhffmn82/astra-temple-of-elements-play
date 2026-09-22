@@ -155,12 +155,12 @@ function canPray(pid){
 }
 function usePrayer(pid){
   if(!canPray(pid)){ log('You cannot offer that prayer right now.','c-info'); sfx('ui-error'); return; }
-  var P=PRAYERS[pid], div=1+((player.weapon.divine||0)+((player.off&&player.off.divine)||0));
+  var P=PRAYERS[pid], div=divineStrength();
   if(P.favor) player.favor-=P.favor;
   if(P.essence) spendEssence(P.essence);
   if(P.amusement) player.amusement-=P.amusement;
   sfx('pray'); setClip(player,'cast'); ringFx(player.x,player.y,GODS[player.god].color,2.5);
-  if(pid==='ironhide'){ player.buffs.ironhide=12; derive(player); log('Iron Hide: +5 armor.','c-good'); }
+  if(pid==='ironhide'){ player.buffs.ironhide=divineDuration(12); derive(player); log('Iron Hide: +5 armor.','c-good'); }
   else if(pid==='pummel'){ player.pummel=3; log('Pummel: your next three unarmed hits deal double and stun.','c-good'); }
   else if(pid==='rampage'){ player.buffs.rampage=10; derive(player); log('Rampage! +40% melee damage and speed.','c-good'); }
   else if(pid==='trollblood'){ var h=Math.round(player.maxhp*0.4*div); healPlayer(h); clearBad(); floatText(player.x,player.y,'+'+h,'heal'); log('Trollblood: +'+h+' HP.','c-good'); }

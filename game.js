@@ -636,6 +636,7 @@ var KEYS={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0],
   w:[0,-1],s:[0,1],a:[-1,0],d:[1,0],q:[-1,-1],e:[1,-1],z:[-1,1],c:[1,1]};
 window.addEventListener('keydown', function(ev){
   var tgt=ev.target.tagName;
+  if(typeof uiOpen==='function'&&uiOpen()&&!openSheet)return;
   if(tgt==='INPUT'||tgt==='SELECT') return;
   var k=ev.key;
   if(k==='Escape'){ if(aiming) cancelAim(); else if(openSheet) showSheet(openSheet); return; }

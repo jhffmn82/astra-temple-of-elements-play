@@ -27,7 +27,7 @@ var TIER_ARMOR = { robe:[0,1,2,3], leather:[2,3,5,7], chain:[3,5,8,11], plate:[4
 var TIER_ROBE = { spell:[0.05,0.05,0.10,0.15], spellPer:0.03, mana:[0.05,0.05,0.10,0.10] };
 var TIER_BLOCK = { buckler:[0.08,0.10,0.14,0.18], kite:[0.15,0.20,0.25,0.30], holy:[0.04,0.05,0.07,0.09], per:0.02 };
 var TIER_OFF = {
-  tome:     {field:'manaPct',     base:[0.10,0.15,0.20,0.25], per:0.04},
+  tome:     {field:'manaPct',     base:[0.10,0.10,0.10,0.10], per:0.05},
   holy:     {field:'divine',      base:[0.10,0.15,0.20,0.25], per:0.04},
 };
 /* caster items: tier value + per upgrade level (tierOf reads these by tier number) */
@@ -95,6 +95,7 @@ function tierCol(it){ return (it && itemKey(it)) ? TIER_COL[tierNum(it)] : null;
 /* rebuild an item's numbers from its type, tier and plus (safe to call any time) */
 function tierNormalize(it){
   var k=itemKey(it); if(!k) return it;
+  if(k==='censer'){it.name='Ceremonial Knife';it.icon='item-censer';}
   var t=tierNum(it), lvl=it.plus||0; it.tier=t;
   if(TIER_WEAPON[k] && (it.kind!=='off' || it.weapon)){
     var b=TIER_WEAPON[k][t], per=tierPer(it);
@@ -108,6 +109,7 @@ function tierNormalize(it){
   }
   if(TIER_BLOCK[k]){ it.block=TIER_BLOCK[k][t]; it.eva = k==='kite' ? -5 : 0; }
   if(TIER_OFF[k]){ var O=TIER_OFF[k]; it[O.field]=Math.max(0, O.base[t]+O.per*lvl); }
+  if(k==='holy'||k==='censer') it.note='Divine Focus: strengthens Invokes and prayers.';
   return it;
 }
 function tierPer(w){
@@ -203,7 +205,8 @@ bagCard = function(it){
     if(!d.unid){
       if(TIER_BLOCK[k]) extra+='<div class="row"><span>Block</span><b>'+Math.round((d.block+TIER_BLOCK.per*(d.plus||0))*100)+'%</b></div>';
       if(k==='tome') extra+='<div class="row"><span>Max mana</span><b>+'+Math.round(d.manaPct*100)+'%</b></div>';
-      if(k==='holy') extra+='<div class="row"><span>Invoke strength</span><b>+'+Math.round(d.divine*100)+'%</b></div>';
+      if(k==='holy') extra+='<div class="row"><span>Invoke &amp; prayer strength</span><b>+'+Math.round(d.divine*100)+'%</b></div>';
+      if(k==='holy') extra+='<div class="row"><span>Beneficial prayer duration</span><b>+'+((d.plus||0)>=3?2:1)+' turns</b></div>';
       if(d.kind==='off' && d.weapon) extra+='<div class="row"><span>Off-hand strike</span><b>60% damage, own procs</b></div>';
     }
     h=tierTint(h, d)+extra+reqRow(d);

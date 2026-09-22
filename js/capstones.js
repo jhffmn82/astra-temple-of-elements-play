@@ -19,7 +19,6 @@ attack = function(att, def, mult, label){
   mult = mult || 1;
   var knock=false;
   if(att===player && def && def.hp>0){
-    if(capstone('grumbok') && player.spellbreak && dist(att,def)<=1){ mult*=2; player.spellbreak=false; log('<b>Spellbreaker!</b> You answer the spell with steel.','c-good'); }
     if(capstone('reginald') && foesInView()===1) mult*=1.3;
   }
   var hp0 = def ? def.hp : 0;
@@ -36,7 +35,6 @@ attack = function(att, def, mult, label){
 var _applyDamageCap = applyDamage;
 applyDamage = function(target, amount, type, source){
   if(target===player){
-    if(capstone('grumbok') && type!=='phys' && source && source.foe){ amount*=0.5; player.spellbreak=true; }
     if(capstone('reginald') && foesInView()===1) amount*=0.8;
   }
   var d=_applyDamageCap(target, amount, type, source);

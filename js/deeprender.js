@@ -295,11 +295,12 @@ blitTile = function(o, px, py, alpha){
   return r;
 };
 var _drawDeepBudget = draw;
+var DEEP_RAF=null;
 draw = function(){
-  if(DC) DC.built = document.body.classList.contains('touch') ? DEEP_BUDGET-8 : 0;
-  var r=_drawDeepBudget.apply(this, arguments);
-  DEEP_RC=false; DEEP_AT=-1;
-  if(inDeep() && DC.built>=DEEP_BUDGET) requestAnimationFrame(function(){ draw(); });
+  if(DC && DEEP_RAF===null) DC.built = document.body.classList.contains('touch') ? DEEP_BUDGET-8 : 0;
+  var r;
+  try{r=_drawDeepBudget.apply(this, arguments);}finally{DEEP_RC=false;DEEP_AT=-1;}
+  if(inDeep() && DC.built>=DEEP_BUDGET && DEEP_RAF===null) DEEP_RAF=requestAnimationFrame(function(){DEEP_RAF=null;draw();});
   return r;
 };
 

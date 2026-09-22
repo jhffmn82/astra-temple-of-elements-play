@@ -115,7 +115,7 @@ function addCloud(cx, cy, r, turns, dmg, source){
 function cloudAt(i){ return (floorMeta.clouds||[]).filter(function(c){ return turn<c.until && c.cells.indexOf(i)>=0; })[0]; }
 var _endTurnCrypt = endTurn;
 endTurn = function(){
-  _endTurnCrypt();
+  var before=turn;_endTurnCrypt();if(turn===before)return;
   if(!floorMeta || !floorMeta.clouds || !floorMeta.clouds.length || !player || player.hp<=0) return;
   floorMeta.clouds = floorMeta.clouds.filter(function(c){ return turn<c.until; });
   ents.slice().forEach(function(e){

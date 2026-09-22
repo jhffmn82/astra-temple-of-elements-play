@@ -199,6 +199,7 @@ function inflictBleed(t, src, turns){
 }
 var _tickStatusDeep = tickStatus;
 tickStatus = function(e){
+  if(typeof WORLD_TICK!=='undefined'&&!WORLD_TICK)return true;
   var s=e && e.st;
   if(s && s.bleed && s.bleed.t>0 && e.hp>0){
     var bd=Math.max(1, s.bleed.d||2);

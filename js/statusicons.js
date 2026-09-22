@@ -60,14 +60,19 @@ function statusList(e){
     if(player.hidden>0) out.push({k:'hidden', t:player.hidden});
     if(player.levitate>0) out.push({k:'levitate', t:player.levitate});
   }
-  return out.map(function(o){ var I=STATUS_INFO[o.k] || {name:cap(o.k), icon:'', d:''}; return {k:o.k, t:o.t, name:I.name, icon:I.icon, d:I.d, bad:!!I.bad}; });
+  return out.map(function(o){
+    var I=STATUS_INFO[o.k] || {name:cap(o.k), icon:'', d:''};
+    /* Sylla's web starts as Root, then becomes Slow. Show silk in both phases. */
+    if(o.k==='root'&&e.syllaWeb>0) I={name:'Webbed',icon:'st-web',bad:1,d:'Pinned in silk. When released, moves and acts at half speed.'};
+    return {k:o.k, t:o.t, name:I.name, icon:I.icon, d:I.d, bad:!!I.bad};
+  });
 }
 
 (function(){
   var st=document.createElement('style');
   st.textContent=[
-    '#statusbar{position:absolute;left:8px;top:8px;z-index:6;display:flex;flex-wrap:wrap;gap:4px;max-width:60%;pointer-events:auto}',
-    '#statusbar .sico{position:relative;width:34px;height:34px;border-radius:6px;border:1px solid #6B8A5A;background:rgba(18,15,13,.82);display:flex;align-items:center;justify-content:center}',
+    '#statusbar{position:absolute;left:8px;top:8px;z-index:6;display:flex;flex-wrap:wrap;gap:4px;max-width:60%;pointer-events:none}',
+    '#statusbar .sico{pointer-events:auto;position:relative;width:34px;height:34px;border-radius:6px;border:1px solid #6B8A5A;background:rgba(18,15,13,.82);display:flex;align-items:center;justify-content:center}',
     '#statusbar .sico.bad{border-color:#A04A3A}',
     '#statusbar .sico img{width:26px;height:26px;image-rendering:pixelated}',
     '#statusbar .sico .n{position:absolute;right:2px;bottom:0;font-size:11px;font-weight:700;color:#fff;text-shadow:0 0 2px #000,0 1px 2px #000}',
@@ -83,6 +88,7 @@ function statusList(e){
 })();
 
 function renderStatusBar(){
+  if(typeof hideCard==='function')hideCard();
   var bar=$('statusbar'); if(!bar || !player) return;
   var list=statusList(player);
   bar.innerHTML=list.map(function(s, i){

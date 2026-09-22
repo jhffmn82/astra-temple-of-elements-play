@@ -95,7 +95,7 @@ trinketCard = function(it){
 /* ---------------------------------------------------------------- Keen Eyes: anything you can see */
 var _endTurnUp = endTurn;
 endTurn = function(){
-  _endTurnUp();
+  var before=turn;_endTurnUp();if(turn===before)return;
   if(!player || player.hp<=0 || !(ringVal('keeneyes')>0)) return;
   var ch=ringVal('keeneyes');
   feats.forEach(function(f){ if(!f.found && vis[idxOf(f.x,f.y)] && rng()<ch){ f.found=true; log('Your ring tingles: a <b>'+trapName(f.kind)+' trap</b>.','c-info'); } });

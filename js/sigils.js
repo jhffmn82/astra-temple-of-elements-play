@@ -165,7 +165,7 @@ endTurn = function(){
     var c=player._cinderAt; if(!(c.x===player.x&&c.y===player.y)) fireT[idxOf(c.x,c.y)]=Math.max(fireT[idxOf(c.x,c.y)],3);
   }
   if(player) player._cinderAt={x:player.x, y:player.y};
-  _endTurnSig();
+  var before=turn;_endTurnSig();if(turn===before)return;
   if(player && player.buffs && player.buffs.manaflow>0 && player.hp>0){ player.mp=Math.min(player.maxmp, player.mp + player.maxmp*0.009); }
 };
 

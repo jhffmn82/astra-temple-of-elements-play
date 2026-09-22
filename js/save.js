@@ -239,7 +239,7 @@ function exitGame(){
 function closeTitle(){ var el=$('title'); if(el) el.classList.remove('on'); }
 function latestSave(){
   var best=null, bestSlot=null;
-  SAVE_SLOTS.forEach(function(s){ var d=readSlot(s); if(d && (!best || String(d.savedAt)>String(best.savedAt))){ best=d; bestSlot=s; } });
+  SAVE_SLOTS.forEach(function(s){ var d=readSlot(s); if(d && d.summary && typeof d.savedAt==='string' && Number.isFinite(Date.parse(d.savedAt)) && (!best || d.savedAt>best.savedAt)){ best=d; bestSlot=s; } });
   return bestSlot;
 }
 function renderTitleMenu(){

@@ -171,7 +171,7 @@ usePrayer = function(pid){
   }
   var hid=player.hideShield;
   _usePrayerRel(pid);
-  if(pid==='ironhide'){ player.hideShield=(hid||0)+5+2*godRank(); log('A shield of '+Math.round(player.hideShield)+' hardens over your skin.','c-good'); updateUI(); }
+  if(pid==='ironhide'){ player.hideShield=(hid||0)+Math.round((5+2*godRank())*divineStrength()); log('A shield of '+Math.round(player.hideShield)+' hardens over your skin.','c-good'); updateUI(); }
 };
 var _playerShieldRel = playerShield;
 playerShield = function(){ return _playerShieldRel() + Math.max(0, Math.floor(player.hideShield||0)); };
@@ -180,9 +180,9 @@ playerShield = function(){ return _playerShieldRel() + Math.max(0, Math.floor(pl
 var _castSelfRel = castSelf;
 castSelf = function(key, A){
   if(key==='unholyaura'){
-    var div=1 + ((player.weapon.divine||0) + ((player.off&&player.off.divine)||0)) + 0.03*Math.max(0, player.stats.foc-10);
+    var div=divineStrength() + 0.03*Math.max(0, player.stats.foc-10);
     player.mp-=costOf(A); setClip(player,'cast');
-    player.st.aura={t:8, d:Math.round((5+godRank())*div)};
+    player.st.aura={t:divineDuration(8), d:Math.round((5+godRank())*div)};
     sparkleFx(player.x,player.y,'dark',40); sfx('shadow-cast');
     log('An unholy aura seeps from you ('+player.st.aura.d+' a turn).','c-good');
     return true;
@@ -214,8 +214,7 @@ castRaiseDead = function(x, y, A){
 /* ---------------------------------------------------------------- Reginald rank 3: Called Out */
 var _applyDamageRel = applyDamage;
 applyDamage = function(target, amount, type, source){
-  if(target && target!==player && hasGod('reginald') && godRank()>=3 && (source===player || source==='player' || (source && source.ally)) &&
-     (target.elite || (target.base && (target.base.elite || target.base.boss))) && target.state==='hunt') amount*=1.15;
+  // Called Out is defensive against the challenged elite/boss; see applyDamage.
   return _applyDamageRel(target, amount, type, source);
 };
 

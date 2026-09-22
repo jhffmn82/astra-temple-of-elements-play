@@ -65,6 +65,7 @@
 
   /* right-click an open door beside you to shut it (right-click still cancels aiming first) */
   cv.addEventListener('contextmenu', function(ev){
+    if(document.body.classList.contains('touch'))return;
     if(aiming || !player || (RUN && (RUN.over||RUN.victory))) return;
     var r=cv.getBoundingClientRect();
     var mx=camX+Math.floor((ev.clientX-r.left+camOX)/TS), my=camY+Math.floor((ev.clientY-r.top+camOY)/TS);

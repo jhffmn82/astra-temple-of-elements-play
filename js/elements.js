@@ -169,7 +169,7 @@ kill = function(e, by){
 /* ---------------------------------------------------------------- enemies: tomb, stone, ground */
 var _aiActEl = aiAct;
 aiAct = function(e){
-  if(e.tomb>0){ e.tomb--; if(e.tomb===0){ log('The ice around '+e.name+' shatters.','c-info'); sfx('ice-melt'); } e.t+=actCost(e); return; }
+  if(e.tomb>0){ if(typeof WORLD_TICK==='undefined')e.tomb--; if(e.tomb===0){ log('The ice around '+e.name+' shatters.','c-info'); sfx('ice-melt'); } e.t+=actCost(e); return; }
   if(e.st && e.st.stone){ tickStatus(e); e.t+=actCost(e); return; }
   var ox=e.x, oy=e.y;
   _aiActEl(e);
@@ -209,7 +209,7 @@ endTurn = function(){
   _endTurnEl();
   FREE_ACTION=false;
   if(!player || player.hp<=0 || turn===before) return;
-  groundTick();
+  if(typeof WORLD_TICK==='undefined')groundTick();
   /* Fade (Shadow 3) */
   var fighting=ents.some(function(e){ return e.foe && e.state==='hunt' && vis[idxOf(e.x,e.y)]; });
   player.calm = fighting || player.noisy ? 0 : (player.calm||0)+1;
@@ -430,7 +430,7 @@ var _allyActEl = allyAct;
 allyAct = function(e){
   if(!e.rangedAlly) return _allyActEl(e);
   if(!tickStatus(e)) return;
-  e.life--; if(e.life<=0){ ents=ents.filter(function(o){ return o!==e; }); log('Your '+e.name+' gutters out.','c-info'); return; }
+  if(typeof WORLD_TICK==='undefined')e.life--; if(e.life<=0){ ents=ents.filter(function(o){ return o!==e; }); log('Your '+e.name+' gutters out.','c-info'); return; }
   if(e.st.stun || e.st.frozen){ e.t+=actCost(e); return; }
   var tgt=ents.filter(function(o){ if(!o.foe || o.hp<=0 || !vis[idxOf(o.x,o.y)] || dist(e,o)>e.rangedAlly) return false; var pth=boltPath(e.x,e.y,o.x,o.y), en=pth[pth.length-1]; return en && en.x===o.x && en.y===o.y; })
     .sort(function(a,b){ return dist(a,e)-dist(b,e); })[0];

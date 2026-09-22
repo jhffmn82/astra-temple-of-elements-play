@@ -46,7 +46,7 @@ function castArcaneLance(x,y){
   var path=boltPath(player.x,player.y,x,y),end=path[path.length-1],target=end&&foeAt(end.x,end.y);
   if(!target || target.tomb>0 || !canPray('arcanelance'))return false;
   aiming=null;player.favor-=5;player.castingSpell=true;player.castTurn=turn;player.noisy=true;setClip(player,'cast');sfx('magic-missile');
-  function hit(){boltFx(player.x,player.y,target.x,target.y,'magic');if(target.hp>0 && combatRoll(hitChance(player.acc+10,evaOf(target)),true)){spellHit(target,ARCANE_LANCE,Math.round(roll(10,16)*spellPower(ARCANE_LANCE)),'magic');finishHit(target);}else floatText(target.x,target.y,'miss','miss');}
+  function hit(){boltFx(player.x,player.y,target.x,target.y,'magic');if(target.hp>0 && combatRoll(hitChance(player.acc+10,evaOf(target)),true)){spellHit(target,ARCANE_LANCE,Math.round(roll(10,16)*spellPower(ARCANE_LANCE)*divineStrength()),'magic');finishHit(target);}else floatText(target.x,target.y,'miss','miss');}
   hit();if(target.hp>0 && rng()<echoChance(godRank())){log('<b>Spell Echo.</b> Arcane Lance repeats.','c-good');hit();}
   endTurn();return true;
 }
@@ -71,7 +71,7 @@ usePrayer=function(pid){
     aiming={A:ARCANE_LANCE,prayer:pid};if(openSheet)showSheet(openSheet);log('Arcane Lance: choose an enemy within 6 tiles.','c-info');draw();return;
   }
   if(pid==='luckystreak'){
-    if(!canPray(pid))return;player.favor-=10;player.buffs.luckystreak=8;derive(player);sfx('wobbles-giggle');updateUI();return;
+    if(!canPray(pid))return;player.favor-=10;player.buffs.luckystreak=divineDuration(8);derive(player);sfx('wobbles-giggle');updateUI();return;
   }
   return _balancePrayer(pid);
 };
@@ -87,6 +87,7 @@ onPutOn=function(it){if(it){if(it.unid&&!it.amusedUnidentified){it.amusedUnident
 var _balanceTrap=triggerTrap;
 triggerTrap=function(tr,e){var r=_balanceTrap(tr,e);if(e===player && !tr.amused){tr.amused=true;gainAmusement(5);}return r;};
 function safeWobbleSpots(){
+  if(activeBossEncounter())return []; // Do not teleport through sealed encounter geometry.
   var out=[];for(var y=0;y<MH;y++)for(var x=0;x<MW;x++)if(walkable(x,y)&&!occupied(x,y)&&at(x,y)!==WATER&&!(fireT&&fireT[idxOf(x,y)])&&!feats.some(function(f){return f.x===x&&f.y===y;})&&!ents.some(function(e){return e.foe&&e.hp>0&&dist(e,{x:x,y:y})<=1;}))out.push({x:x,y:y});return out;
 }
 greaterPrayer=function(){
@@ -120,7 +121,11 @@ function lastLaugh(){
 var _balanceDamage=applyDamage;
 applyDamage=function(target,amount,type,source){
   var d=_balanceDamage(target,amount,type,source);
-  if(target===player && d>0)player.lastDamageTime=player.t;
+  if(target===player && d>0){
+    player.lastDamageTime=player.t;
+    if(hasGod('grumbok') && godRank()>=3 && type!=='phys')player.wizardHunterUntil=player.t+300;
+    if(capstone('grumbok') && type!=='phys' && source && source.foe)player.spellbreakUntil=player.t+1000;
+  }
   if(target===player && player.hp<=0)lastLaugh();
   return d;
 };
@@ -135,8 +140,8 @@ endTurn=function(){
   return r;
 };
 var _balanceDerive=derive;
-derive=function(p){var r=_balanceDerive(p);if(p===player&&p.race==='dwarf')p.armor+=1;return r;};
-RACES.dwarf.blurb+=' Innate +1 Armor.';
+derive=function(p){var hp=p.hp,mp=p.mp,r=_balanceDerive(p);if(p===player&&p.race==='dwarf')p.armor+=1;if(Number.isFinite(hp))p.hp=Math.min(hp,p.maxhp);if(Number.isFinite(mp))p.mp=Math.min(mp,p.maxmp);return r;};
+RACES.dwarf.blurb='Sturdy masters of the forge. Weapon damage counts as +1, heavy armor costs no evasion, and innate Armor is +1.';
 var _balanceGodKill=godOnKill;
 godOnKill=function(e,by){if(e && (e.noXp||e.noReward||e.ally))return;return _balanceGodKill(e,by);};
 var _balanceSigil=useSigil;
@@ -152,8 +157,63 @@ useSigil=function(use){
 };
 UNDEAD_FORMS=UNDEAD_FORMS.filter(function(f){return f.name!=='Zombie Bruiser';});
 GODS.murk.boons[1]='Grave Strength: your permanent servant gains +10% health and damage per divine rank from rank 3.';
-var _balanceRaise=castRaiseDead;
-castRaiseDead=function(x,y,A){
-  var old=ents.slice(),r=_balanceRaise(x,y,A);
-  ents.forEach(function(e){if(e.undeadServant && old.indexOf(e)<0 && godRank()>=3){var scale=1+.1*godRank();e.maxhp=Math.round(e.maxhp*scale);e.hp=e.maxhp;e.dmg=e.dmg.map(function(d){return Math.round(d*scale);});}});return r;
+// The servant's existing rank scaling is applied in castRaiseDead before it acts.
+GODS.murk.boons[1]='Grave Strength: your permanent servant retains its rank-scaled health and damage; Zombie Bruiser is retired.';
+
+GODS.glimmer.boonRanks=[1,3,5];
+smiteBonus=function(){return hasGod('glimmer')&&godRank()>=3?.05*godRank():0;};
+GODS.glimmer.boons[1]='Guiding Light: +15 / 20 / 25 percentage points of Smite chance at ranks 3 / 4 / 5.';
+GODS.reginald.boons[1]='Called Out: a challenged elite or boss deals 15 / 20 / 25% less damage to you at ranks 3 / 4 / 5.';
+GODS.grumbok.boons=['Thick Hide: +8% nonphysical resistance and +20% natural regeneration per rank.','Wizard Hunter: after nonphysical damage, +15 / 20 / 25% movement and attack speed for 3 world turns.','Spellbreaker: halve enemy nonphysical damage; your next connected melee hit within 10 world turns deals +50% damage.'];
+PRAYERS.laststand.desc='Instant, 10 Favor: at or below half health, take 50% less damage for 10 turns. Cannot refresh while active.';
+PRAYERS.rally.desc='25 Favor, one action: visible allies and you heal 25%, cleanse negative conditions and deal +10% damage for 10 turns.';
+PRAYERS.consecrate.desc='Instant, 10 Favor: cleanse yourself and deal 8 Light damage to nearby undead and Shadow enemies.';
+PRAYERS.sanctuary.desc='25 Favor, one action: radius-3 holy ground for 10 world turns, Fear nearby enemies for 4 turns. Inside: +25% healing and +15% nonphysical resistance.';
+var _rulingCanPray=canPray;
+canPray=function(id){if(id==='laststand'&&(player.hp>player.maxhp*.5||buff('laststand')))return false;return _rulingCanPray(id);};
+function inSanctuary(e){var s=floorMeta.sanctuary;return !!(s&&s.until>(typeof worldNow==='function'?worldNow():player.t)&&(e===player||e.ally)&&dist(e,s)<=3);}
+var _rulingResist=resistMult;
+resistMult=function(e,type){var r=_rulingResist(e,type);return type!=='phys'&&inSanctuary(e)?Math.max(.25,r-.15):r;};
+var _rulingHeal=healPlayer;
+healPlayer=function(n,natural){return _rulingHeal(n*(inSanctuary(player)?1.25:1),natural);};
+var _rulingPrayer=usePrayer;
+usePrayer=function(id){
+  if(!['laststand','rampage','rally','consecrate','sanctuary','trollblood'].includes(id))return _rulingPrayer(id);
+  if(!canPray(id)){log('That prayer is unavailable.','c-info');return;}
+  player.favor-=PRAYERS[id].favor;sfx('pray');setClip(player,'cast');
+  if(id==='laststand'||id==='rampage'){player.buffs[id]=divineDuration(10);derive(player);updateUI();return;}
+  if(id==='consecrate'){
+    clearBad();ents.slice().forEach(function(e){if(e.foe&&dist(e,player)<=3&&(e.base.undead||e.base.shadowy)){var d=applyDamage(e,Math.round(8*divineStrength()),'light',player);floatText(e.x,e.y,String(d),'light');if(e.hp<=0)kill(e,player);}});
+    sparkleFx(player.x,player.y,'light',40);updateUI();return;
+  }
+  if(id==='sanctuary'){floorMeta.sanctuary={x:player.x,y:player.y,until:player.t+100*divineDuration(10)};ents.forEach(function(e){if(e.foe&&dist(e,player)<=3)applyStatus(e,'fear',4);});ringFx(player.x,player.y,'#FFE4A0',3);}
+  if(id==='trollblood'){healPlayer(player.maxhp*.4*divineStrength());clearBad();}
+  if(id==='rally'){
+    healPlayer(player.maxhp*.25*divineStrength());clearBad();player.buffs.rally=divineDuration(10);
+    ents.forEach(function(e){if(e.ally&&e.hp>0&&vis[idxOf(e.x,e.y)]){e.hp=Math.min(e.maxhp,e.hp+e.maxhp*.25*divineStrength()*(inSanctuary(e)?1.25:1));Object.keys(e.st||{}).forEach(function(k){if(STATUS_INFO[k]&&STATUS_INFO[k].bad)delete e.st[k];});e.rallyUntil=player.t+100*divineDuration(10);}});
+  }
+  endTurn();
+};
+var _rulingAttack=attack;
+attack=function(a,d,m,l){return _rulingAttack(a,d,(m||1)*(a.ally&&a.rallyUntil>player.t?1.1:1),l);};
+var _rulingSpellPower=spellPower;
+spellPower=function(A){return _rulingSpellPower(A)*(buff('rally')?1.1:1);};
+
+// Recovered description specifies a direct hit but no base. Match Bone Spear's
+// 10–16 base as a balance choice, separate from percentage-based Poison.
+var VENOM_BURST={name:'Venom Burst',base:[10,16],kind:'aoe',type:'poison',divine:true,cost:0};
+PRAYERS['venom-burst'].desc='25 Favor: enemies within 3 tiles take 10–16 spell-scaled direct damage, then Poison and Blind for 3 turns (4 at rank 5).';
+prayVenomBurst=function(){
+  if(!canPray('venom-burst'))return;player.favor-=25;sfx('pray');setClip(player,'cast');ringFx(player.x,player.y,'#91B856',3);sparkleFx(player.x,player.y,'poison',40);
+  ents.slice().forEach(function(e){if(e.foe&&e.hp>0&&dist(e,player)<=3){spellHit(e,VENOM_BURST,Math.round(roll(10,16)*spellPower(VENOM_BURST)*divineStrength()),'poison');if(e.hp>0){syllaPoison(e,3,godRank());applyStatus(e,'blind',3);}finishHit(e);}});endTurn();
+};
+var _sanctuaryGround=typeof drawSurfaceDeco==='function'?drawSurfaceDeco:function(){};
+drawSurfaceDeco=function(){
+  _sanctuaryGround();var s=floorMeta&&floorMeta.sanctuary;if(!s||s.until<=player.t)return;
+  ctx.save();ctx.strokeStyle='rgba(245,219,142,.55)';ctx.fillStyle='rgba(245,219,142,.06)';ctx.lineWidth=1;
+  for(var y=s.y-3;y<=s.y+3;y++)for(var x=s.x-3;x<=s.x+3;x++){
+    if(!inb(x,y)||!vis[idxOf(x,y)]||!walkable(x,y)||dist({x:x,y:y},s)>3)continue;
+    var px=(x-camX)*TS,py=(y-camY)*TS;ctx.fillRect(px,py,TS,TS);
+    ctx.beginPath();ctx.moveTo(px+TS*.4,py+TS*.5);ctx.lineTo(px+TS*.6,py+TS*.5);ctx.moveTo(px+TS*.5,py+TS*.4);ctx.lineTo(px+TS*.5,py+TS*.6);ctx.stroke();
+  }ctx.restore();
 };

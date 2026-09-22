@@ -29,7 +29,7 @@ function pacedKey(ev){
   if(typeof KEYS!=='undefined' && KEYS[ev.key]) return true;
   return !!PACED_KEYS[ev.key];
 }
-function uiOpen(){ return (typeof modalOpen!=='undefined' && modalOpen) || (typeof openSheet!=='undefined' && openSheet) || ($('create') && $('create').classList.contains('on')); }
+function uiOpen(){ return (typeof modalOpen!=='undefined' && modalOpen) || (typeof openSheet!=='undefined' && openSheet) || ($('title') && $('title').classList.contains('on')) || ($('create') && $('create').classList.contains('on')); }
 
 window.addEventListener('keydown', function(ev){
   var tgt=ev.target && ev.target.tagName;
@@ -56,7 +56,7 @@ window.addEventListener('click', function(ev){
   if(p && (!animBusy() || performance.now()-PACING.since>1500)){
     PACING.pending=null;
     var e;
-    if(p.type==='key'){ e=new KeyboardEvent('keydown',{key:p.key, shiftKey:p.shift, bubbles:true, cancelable:true}); e.__replay=true; window.dispatchEvent(e); }
+    if(p.type==='key'){ e=new KeyboardEvent('keydown',{key:p.key, shiftKey:p.shift, bubbles:true, cancelable:true}); e.__replay=true;e.__fote=true; window.dispatchEvent(e); }
     else if(p.el && p.el.isConnected){ e=new MouseEvent('click',{clientX:p.x, clientY:p.y, bubbles:true, cancelable:true}); e.__replay=true; p.el.dispatchEvent(e); }
   }
   requestAnimationFrame(pump);
