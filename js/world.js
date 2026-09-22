@@ -124,6 +124,10 @@ function newRunState(seed){
 
 /* ============================================================== generation */
 function generate(seed){
+  /* Status/buff timing uses this scheduler clock across the whole run.  Resetting
+     it on every new floor left carried effects with timestamps far in the future,
+     so they stopped counting down and affected saves preserved the mismatch. */
+  var floorClock=(typeof player!=='undefined' && player && Number.isFinite(player.t))?player.t:0;
   for(var attempt=0; attempt<8; attempt++){
     if(generateOnce((seed + attempt*7919)>>>0)){
       /* later room builders can wall over a cell chosen earlier: drop traps and loot left inside walls */
@@ -131,9 +135,9 @@ function generate(seed){
       items = items.filter(function(it){ return walkable(it.x,it.y) || at(it.x,it.y)===STAIRS; });
       /* a chest, stairs or door placed after a prop takes the tile */
       props = props.filter(function(p){ return !objectTile(at(p.x,p.y)); }); rebuildPropGrid();
-      /* everyone on a fresh floor starts on the same clock */
-      if(typeof player!=='undefined' && player) player.t=0;
-      ents.forEach(function(e){ e.t=0; });
+      /* everyone on a fresh floor starts on the same, run-wide clock */
+      if(typeof player!=='undefined' && player) player.t=floorClock;
+      ents.forEach(function(e){ e.t=floorClock; });
       return;
     }
   }
@@ -287,7 +291,7 @@ function generateOnce(seed){
   ((biomePlan().motes||{})[floorNo]||[]).forEach(function(el){ drop({kind:'mote', el:el}); });
 
   /* ---- start ---- */
-  player.x=start.cx; player.y=start.cy; player.t=0;
+  player.x=start.cx; player.y=start.cy;
   if(!walkable(player.x,player.y)){ var sp=nearestWalkable(player.x,player.y); player.x=sp.x; player.y=sp.y; }
   ents=[player]; spawnedExtra=0; nextSpawn=turn + ri(45,75);
 

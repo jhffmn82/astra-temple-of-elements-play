@@ -3,6 +3,23 @@
 var WORLD_TICK=false;
 var WORLD_NOW=null;
 function worldNow(){return WORLD_NOW===null?player.t:WORLD_NOW;}
+/* Saves made while floor generation reset player.t can contain effect birth
+   stamps from the former, higher scheduler clock.  Preserve each remaining
+   duration, but bring impossible future stamps back to the loaded clock so the
+   next elapsed world turn resumes the countdown. */
+function repairSavedEffectClocks(){
+  if(!player)return;
+  var now=Number.isFinite(player.t)?player.t:0,actors=[player].concat((ents||[]).filter(function(e){return e!==player;}));
+  actors.forEach(function(e){
+    Object.keys(e&&e.st||{}).forEach(function(k){var s=e.st[k];if(s&&s.bornAt!==undefined&&s.bornAt>now)s.bornAt=now;});
+  });
+  player._worldBuffBorn=player._worldBuffBorn||{};
+  Object.keys(player.buffs||{}).forEach(function(k){if(player.buffs[k]>0&&(!(player._worldBuffBorn[k]<=now)))player._worldBuffBorn[k]=now;});
+  player._worldBuffPrev=Object.assign({},player.buffs||{});
+  player._buffPrev=Object.assign({},player.buffs||{});
+  if(player.hidden>0){if(!(player._worldHiddenBorn<=now))player._worldHiddenBorn=now;player._worldHiddenPrev=player.hidden;}
+  if(player.levitate>0){if(!(player._worldLevitateBorn<=now))player._worldLevitateBorn=now;player._worldLevitatePrev=player.levitate;}
+}
 var _worldApplyStatus=applyStatus;
 applyStatus=function(e,k,n,extra){
   var hard=['stun','root','frozen'].includes(k);
