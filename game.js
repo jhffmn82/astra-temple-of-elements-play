@@ -339,25 +339,12 @@ function cancelAim(){ if(!aiming) return; aiming=null; abilityBar(); draw(); }
 /* ============ turn loop ============ */
 
 /* ============ sprites ============ =======================================
-   The concept art, turned around by PixelLab and cut to 128px. The map still
-   draws blocks for everything else, so this is a toggle, not a commitment.  */
-var SPRITES={}, spriteOn=true;
-/* sprites drawn with one facing (toward the right); mirrored when the character faces left */
-var SINGLE_ART={};
-/* frame animations generated from a sprite (PixelLab animate-with-text-v3): name -> {frames:[Image], ms per frame} */
-var ANIM_ART={};
-function loadAnim(key, clip, count, ms){
-  var list=[];
-  for(var i=0;i<count;i++){ var im=new Image(); im.src='art/sprites/anim/'+key+'-'+clip+'-'+i+'.png'; list.push(im); }
-  ANIM_ART[key]=ANIM_ART[key]||{}; ANIM_ART[key][clip]={frames:list, ms:ms};
-}
-function animFrame(key, clip, phase){
-  var a=ANIM_ART[key] && ANIM_ART[key][clip];
-  if(!a) return null;
-  var n=a.frames.length, i=Math.floor((performance.now()+(phase||0))/a.ms)%n;
-  var im=a.frames[i];
-  return (im.complete && im.naturalWidth) ? im : null;
-}
+   Every creature and character draws from the packed sheets (art/packed, via assets.js). The sandbox's
+   "Block art" button turns that off to show the old coloured blocks.
+   2026-09-22: the first PixelLab cut-outs (art/sprites/*.png) were still requested here on every launch
+   although nothing had drawn them since the sheets arrived - 17 files the published build does not ship,
+   so 17 404s a launch. */
+var spriteOn=true;
 var OS_REDUCE = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 var ANIM={ mode:'auto', reduce: OS_REDUCE };
 function setMotion(mode){
@@ -365,72 +352,11 @@ function setMotion(mode){
   var b=document.getElementById('bMotion');
   if(b) b.textContent = 'Motion: '+(mode==='auto' ? (OS_REDUCE?'auto (off)':'auto (on)') : mode);
 }
-var MOB_ART={};
-function loadSprites(){
-  ['dwarf','gloomling'].forEach(function(who){
-    SPRITES[who]={};
-    ['south','east','north','west'].forEach(function(d){
-      var im=new Image();
-      im.onload=function(){ draw(); };
-      im.src='art/sprites/'+who+'-'+d+'.png';
-      SPRITES[who][d]=im;
-    });
-  });
-  loadAnim('fae-water','idle',8,140);
-  ['fae-water'].forEach(function(k){
-    var im=new Image(); im.onload=function(){ draw(); }; im.src='art/sprites/'+k+'.png'; SINGLE_ART[k]=im;
-  });
-  /* monsters need one facing only - they are read, not steered */
-  ['goblin','rat','emberling','tideling','galeling','stoneling','wisp','lumenling'].forEach(function(m){
-    var im=new Image();
-    im.onload=function(){ draw(); };
-    im.src='art/sprites/mob-'+m+'.png';
-    MOB_ART[m]=im;
-  });
-}
-function playerSprite(){
-  var key=BUILDS[player.build] && BUILDS[player.build].sprite;
-  if(!key) return null;
-  var face=player.face||'south';
-  if(SPRITES[key]) return {im:SPRITES[key][face], flip:false};
-  var idle = ANIM.reduce ? null : animFrame(key,'idle');
-  if(idle) return {im:idle, flip:face==='west', animated:true};
-  if(SINGLE_ART[key]) return {im:SINGLE_ART[key], flip:face==='west'};
-  return null;
-}
 function faceOf(dx,dy){
   if(Math.abs(dx)>Math.abs(dy)) return dx<0 ? 'west' : 'east';
   if(dy) return dy<0 ? 'north' : 'south';
   return null;
 }
-/* draw a sprite standing on a tile: feet on the floor, head over the row above */
-function whiteOf(im){                 /* a white silhouette of the sprite, for hit flashes */
-  if(im._white) return im._white;
-  var c=document.createElement('canvas'); c.width=im.naturalWidth; c.height=im.naturalHeight;
-  var g2=c.getContext('2d'); g2.drawImage(im,0,0);
-  g2.globalCompositeOperation='source-in'; g2.fillStyle='#fff'; g2.fillRect(0,0,c.width,c.height);
-  im._white=c; return c;
-}
-function drawSprite(im, px, py, alpha, scale, o){
-  if(!im || !im.complete || !im.naturalWidth) return false;
-  o = o || {};
-  /* one tile, one figure: it stands inside its square, feet on the floor line.
-     scale lets a rat be smaller than a goblin without redrawing the art */
-  var h=TS*1.04*(scale||1), w=h*im.naturalWidth/im.naturalHeight;
-  if(w>TS*1.04){ h*=TS*1.04/w; w=TS*1.04; }
-  var sy = 1 + (o.breath||0);                     /* idle breathing / death squash, anchored at the feet */
-  ctx.save();
-  ctx.globalAlpha = alpha===undefined ? 1 : alpha;
-  ctx.translate(px+TS/2, py+TS);
-  if(o.flip) ctx.scale(-1,1);
-  ctx.imageSmoothingEnabled = h < im.naturalHeight;   /* smooth when shrinking, crisp pixels when enlarging */
-  ctx.drawImage(im, -w/2, -h*sy, w, h*sy);
-  if(o.flash>0){ ctx.globalAlpha = (alpha===undefined?1:alpha)*o.flash; ctx.drawImage(whiteOf(im), -w/2, -h*sy, w, h*sy); }
-  ctx.restore();
-  ctx.imageSmoothingEnabled=false;
-  return true;
-}
-
 /* ---- motion: tile-to-tile slides, idle breathing, hit flash and shake ---- */
 var MOVE_MS=170;
 /* Presentation state is renderer-owned. Drawing never writes interpolation fields to actors. */
@@ -673,9 +599,6 @@ $('tabs').addEventListener('click', function(ev){
 });
 $('close').onclick=function(){ showSheet(openSheet); };
 $('shade').addEventListener('click', function(ev){ if(ev.target===$('shade')) showSheet(openSheet); });
-$('bStairs').onclick=function(){ if(at(player.x,player.y)===STAIRS) descend(); else log('No stairs here.','c-info'); };
-$('bGrab').onclick=function(){ if(grab()) endTurn(); };
-$('bSwap').onclick=function(){ swapWeapon(); };
 $('bNew').onclick=function(){ var s=parseInt($('seed').value,10); newRun(isNaN(s)?Date.now()%100000:s); };
 $('bReveal').onclick=function(){
   revealAll=!revealAll;

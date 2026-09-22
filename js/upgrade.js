@@ -12,8 +12,9 @@
    ===================================================================== */
 
 /* to +1, +2, +3. 2026-09-17: was 600/1200/2000, cut to 150/400/900 because a full biome 1 gave ~700.
-   2026-09-20 (Justin): doubled to 300/800/1800 - the cut went too far. Fine costs 1.5x these and
-   Masterwork 2x, through tierCostMult below, so a Masterwork +3 is 3600. */
+   2026-09-20 (Justin): doubled to 300/800/1800 - the cut went too far. Fine costs 2x these and
+   Masterwork 4x, through tierCostMult below, so a Masterwork +3 is 7200 (2026-09-22, Justin: was 1.5x / 2x,
+   and a full-clear character ended biome 4 with 29,000 essence unspent). */
 var UPGRADE_COST = [300, 800, 1800];
 var RING_RANK_COST = [500, 1000, 2000];   /* to +1, +2, +3 (2026-09-18, Justin: was a flat 500 a rank) */
 var ESSENCE_BIOME_MULT = [1, 2.5, 4.5, 6, 8];
@@ -105,9 +106,9 @@ RINGS.keeneyes.desc='Spot traps and hidden doors anywhere you can see.';
 RINGS.keeneyes.unit='% chance a turn to spot traps you can see';
 
 /* ---------------------------------------------------------------- upgrades at the Forge */
-/* 2026-09-18 (Justin): Fine costs 1.5x to upgrade and Masterwork 2x - a Masterwork piece is never swapped out,
-   so its +3 is the last thing that slot ever buys */
-function tierCostMult(it){ if(!it || it.kind==='ring' || typeof tierNum!=='function') return 1; var t=tierNum(it); return t>=3 ? 2 : t===2 ? 1.5 : 1; }
+/* 2026-09-18 (Justin): Fine costs more to upgrade and Masterwork more again - a Masterwork piece is never swapped
+   out, so its +3 is the last thing that slot ever buys. 2026-09-22 (Justin): Fine 2x the base, Masterwork 2x that. */
+function tierCostMult(it){ if(!it || it.kind==='ring' || typeof tierNum!=='function') return 1; var t=tierNum(it); return t>=3 ? 4 : t===2 ? 2 : 1; }
 function upgradeCost(it){
   if(!it) return null;
   var plus=it.plus||0;
@@ -143,7 +144,7 @@ function upgradeItem(it){
 function upgradePanelHTML(){
   var list=allUpgradeTargets();
   var h='<p class="c-info">Spend essence to strengthen gear, up to +3. Worn or carried, it all counts. '+
-        'Rings cost '+RING_RANK_COST.join(' / ')+' to reach +1 / +2 / +3. Fine gear costs 1.5x, Masterwork 2x. Upgrading a cursed item breaks the curse. Deeper biomes yield more essence.'+
+        'Rings cost '+RING_RANK_COST.join(' / ')+' to reach +1 / +2 / +3. Fine gear costs 2x, Masterwork 4x. Upgrading a cursed item breaks the curse. Deeper biomes yield more essence.'+
         (player.race==='dwarf'?' <b>Dwarven smithing: 25% cheaper.</b>':'')+'</p>';
   if(!list.length) return h+'<p class="c-info">Nothing to upgrade.</p>';
   list.forEach(function(o, i){

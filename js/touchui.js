@@ -12,9 +12,6 @@
 
   var st=document.createElement('style');
   st.textContent=[
-    /* ---- action buttons: gone */
-    'body.touch #extra{display:none!important}',
-
     /* ---- d-pad: a real thumb target. --dp is one button */
     'body.touch{--dp:clamp(46px,9vw,62px)}',
     'body.touch #dpad{grid-template-columns:repeat(3,var(--dp))!important;grid-auto-rows:var(--dp)!important;gap:5px!important}',

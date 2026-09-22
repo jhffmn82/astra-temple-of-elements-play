@@ -150,10 +150,9 @@ swapWeapon = function(){
                                      : ' slot is empty. A bow there fires without swapping.'), 'c-info');
 };
 
-/* the swap button and its hotbar entry have nothing to do any more */
+/* the hotbar's swap entry has nothing to do any more */
 (function(){
   function hideSwap(){
-    var b = document.getElementById('bSwap'); if(b) b.style.display='none';
     if(player && player.hotbar){
       for(var i=0;i<player.hotbar.length;i++){ var s=player.hotbar[i]; if(s && s.type==='swap') player.hotbar[i]=null; }
     }

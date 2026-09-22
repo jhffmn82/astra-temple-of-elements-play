@@ -956,10 +956,7 @@ function draw(){
       var fade = player.hidden>0 ? 0.5 : 1;
       var flip = player.face==='west';
       if(!drawCharacter(player, px, py, {alpha:fade, flip:flip, flash:flashOf(player), sliding:motionActive(player,now)})){
-        var sp = spriteOn ? playerSprite() : null;
-        if(!(sp && drawSprite(sp.im, px, py, fade, 1, {flip:sp.flip, breath:sp.animated?0:breathOf(player), flash:flashOf(player)}))){
-          ctx.globalAlpha=fade; ctx.fillStyle=player.col||'#E8B44A'; roundRect(px+TS*0.14,py+TS*0.1,TS*0.72,TS*0.72,TS*0.16); ctx.fill(); glyph('@',px,py,'#120F0D'); ctx.globalAlpha=1;
-        }
+        ctx.globalAlpha=fade; ctx.fillStyle=player.col||'#E8B44A'; roundRect(px+TS*0.14,py+TS*0.1,TS*0.72,TS*0.72,TS*0.16); ctx.fill(); glyph('@',px,py,'#120F0D'); ctx.globalAlpha=1;
       }
       var shp = typeof playerShield==='function' ? playerShield() : 0;
       if(shp>0){ var pulseS=ANIM.reduce?0.5:0.5+0.5*Math.sin(now/400); ctx.save(); ctx.globalAlpha=0.18+0.12*pulseS+Math.min(0.2, shp/player.maxhp*0.4);

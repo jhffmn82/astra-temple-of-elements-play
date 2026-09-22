@@ -19,6 +19,14 @@ function repairSavedEffectClocks(){
   player._buffPrev=Object.assign({},player.buffs||{});
   if(player.hidden>0){if(!(player._worldHiddenBorn<=now))player._worldHiddenBorn=now;player._worldHiddenPrev=player.hidden;}
   if(player.levitate>0){if(!(player._worldLevitateBorn<=now))player._worldLevitateBorn=now;player._worldLevitatePrev=player.levitate;}
+  /* Scheduler stamps written against that former clock: Resolve, Fortitude, Storm Form, Grumbok's
+     boons, Rally and Sanctuary.  One further ahead than its effect can reach is a relic of the old
+     clock, not a live effect, so it expires now instead of granting hundreds of turns of immunity. */
+  var spans={resolveUntil:1000,fortUntil:1500,spellbreakUntil:1000,wizardHunterUntil:300,stormUntil:600};
+  Object.keys(spans).forEach(function(k){if(player[k]>now+spans[k])player[k]=now;});
+  if(player.lastDamageTime>now)player.lastDamageTime=now;
+  actors.forEach(function(e){if(e!==player&&e.rallyUntil>now+1300)e.rallyUntil=now;});
+  if(typeof floorMeta==='object'&&floorMeta&&floorMeta.sanctuary&&floorMeta.sanctuary.until>now+1300)floorMeta.sanctuary.until=now;
 }
 var _worldApplyStatus=applyStatus;
 applyStatus=function(e,k,n,extra){

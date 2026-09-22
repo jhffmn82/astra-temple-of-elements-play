@@ -219,9 +219,14 @@ function drawCastLayers(e, cs, fr, dx, dy, w, h, g){
 function paintDoll(el, size){
   var cs=castSheet(player.look);
   if(!cs || !AS.map || !AS.map.held){ paintArt(el,'cast',player.look,size); return; }
+  /* 2026-09-22 (Justin): the doll drew the map sheet's 107px figure at 231 CSS px, a x2.2 blow-up. tools/pack.py
+     packs each native cut-out alone at 256 (cast-<look>-doll.png, ASSETS.cast[look].doll); it is used here when it
+     has loaded, and the map sheet stays the fallback. */
+  var dm=cs.m.doll, di=dm && atl('cast-'+player.look+'-doll.png'), hi=!!(di && di.complete && di.naturalWidth);
+  if(hi) cs={img:di, m:dm};
   var S=size||150, d=window.devicePixelRatio||1, c=document.createElement('canvas');
   c.width=S*d; c.height=S*d*1.25; c.style.width=S+'px'; c.style.height=(S*1.25)+'px';
-  var g=c.getContext('2d'); g.setTransform(d,0,0,d,0,0); g.imageSmoothingEnabled=false;
+  var g=c.getContext('2d'); g.setTransform(d,0,0,d,0,0); g.imageSmoothingEnabled=hi;
   var m=cs.m, row = m.static_row!==undefined ? m.static_row : (m.clips.idle?m.clips.idle.row:0);
   var sc=(S*1.1)/m.stand, w=m.cell*sc;
   var figure=document.createElement('canvas');figure.width=figure.height=m.cell;

@@ -41,16 +41,12 @@
   };
   $('bLevel').onclick=function(){ gainXP(player.xpNext-player.xp); updateUI(); };
   $('bAgain').onclick=function(){ $('over').style.display='none'; openCreate(); };
-  $('bStairs').onclick=function(){ if(at(player.x,player.y)===STAIRS) descend(); else log('No stairs here.','c-info'); };
-  $('bGrab').onclick=function(){ if(grab()) endTurn(); };
-  $('bClose').onclick=function(){ closeAdjacentDoors(); updateUI(); };
-  $('bSwap').onclick=function(){ swapWeapon(); };
 
   /* help sheet */
   var help=$('mHelp');
   if(help) help.innerHTML='<div class="cols">'+
-    '<div><p class="sub">Moving</p><div class="kv"><span>Arrows / WASD</span><b>step or attack</b><span>Q E Z C</span><b>diagonals</b><span>Click a tile</span><b>step that way</b><span>. or space</span><b>wait a turn</b><span>r</span><b>rest until healed (searches a little)</b><span>f</span><b>search for hidden doors and traps</b><span>&gt;</span><b>take the stairs</b><span>Shift+C / click the door</span><b>close a door</b></div></div>'+
-    '<div><p class="sub">Acting</p><div class="kv"><span>1 &ndash; 8</span><b>hotbar slot</b><span>g</span><b>pick up</b><span>x</span><b>swap weapon sets</b><span>Click a monster</span><b>shoot it (bow out)</b><span>Bump a door, chest, lever</span><b>use it</b><span>Bump the Forge / a shrine</span><b>open it</b></div></div>'+
+    '<div><p class="sub">Moving</p><div class="kv"><span>Arrows / WASD</span><b>step or attack</b><span>Q E Z C</span><b>diagonals</b><span>Click a tile</span><b>step that way</b><span>. or space</span><b>wait a turn</b><span>r</span><b>rest until healed (searches a little)</b><span>f</span><b>search for hidden doors and traps</b><span>&gt; / &lt;</span><b>stairs down / up</b><span>Shift+C / click the door</span><b>close a door</b></div></div>'+
+    '<div><p class="sub">Acting</p><div class="kv"><span>1 &ndash; 8</span><b>hotbar slot</b><span>g</span><b>pick up</b><span>Click a monster</span><b>shoot it (bow out)</b><span>Bump a door, chest, lever</span><b>use it</b><span>Bump the Forge / a shrine</span><b>open it</b></div></div>'+
     '<div><p class="sub">Windows</p><div class="kv"><span>Tab</span><b>character</b><span>i</span><b>bag and gear</b><span>p</span><b>faith and prayers</b><span>m / n</span><b>sound / music</b><span>esc</span><b>close</b><span>Right-click bag item</span><b>drop it</b></div></div>'+
     '<div><p class="sub">Reading the map</p><div class="kv"><span>Dim tiles</span><b>remembered</b><span>z</span><b>asleep: surprise it</b><span>Key over a head</span><b>key holder</b><span>Bones at a door</span><b>a zoo behind it</b><span>Uneven stones</span><b>a hidden door near</b><span>Tall grass</span><b>blocks sight, burns</b></div></div></div>';
 
@@ -78,7 +74,6 @@
     bl.onclick=function(){ try{ localStorage.setItem('astra-temple-light', lightingOn()?'off':'on'); }catch(e){} bl.textContent='Lighting: '+(lightingOn()?'on':'off'); draw(); };
   }
 
-  loadSprites();
   newRun(Date.now()%1000000, CHOICE);
   setMotion('auto');
   requestAnimationFrame(resize);

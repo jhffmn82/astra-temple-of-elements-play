@@ -44,7 +44,7 @@ window.addEventListener('keydown', function(ev){
 window.addEventListener('click', function(ev){
   if(ev.__replay || uiOpen() || !animBusy()) return;
   var t=ev.target;
-  var onMap = t===cv, onPad = t.closest && (t.closest('#dpad') || t.closest('#hotbar') || t.closest('#extra'));
+  var onMap = t===cv, onPad = t.closest && (t.closest('#dpad') || t.closest('#hotbar'));
   if(!onMap && !onPad) return;
   if(!PACING.pending) PACING.since=performance.now();
   PACING.pending={type:'click', el: onMap ? cv : (t.closest('button')||t), x:ev.clientX, y:ev.clientY};

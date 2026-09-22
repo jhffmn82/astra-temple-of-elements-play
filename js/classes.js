@@ -110,20 +110,29 @@ var _gainPietyCls = gainPiety;
 gainPiety = function(n, why){ return _gainPietyCls(n, why); };
 
 /* Experience curve (level cap 20). The former 1.55 growth stranded a full-clear
-   floor-18 character at level 12. Growth 1.267 maps that same lifetime XP to
-   level 18 and puts level 20 near the end of biome four. */
-var XP_CURVE_VERSION=2, XP_GROWTH=1.267;
-function xpToNext(level){ return Math.round(50*Math.pow(XP_GROWTH, level-1)/5)*5; }
-function legacyXpToNext(level){ return Math.round(50*Math.pow(1.55, level-1)/5)*5; }
+   floor-18 character at level 12. Growth 1.267 mapped that same lifetime XP to
+   level 18 and put level 20 before the end of biome four.
+   2026-09-22 (Justin): level 20 should land on the biome-4 boss. Iris's full-clear
+   export reached the Matron's death with 18,409 lifetime XP, having hit 20 some
+   1,800 earlier; growth 1.275 asks 18,210 for level 20, so that run dings 20 as
+   the Matron falls. Each version's curve is kept so an older save can be
+   re-levelled from its lifetime XP; a save is never demoted by a steeper curve. */
+var XP_CURVE_VERSION=3, XP_GROWTH=1.275;
+var XP_GROWTH_BY_VERSION={1:1.55, 2:1.267, 3:XP_GROWTH};
+function xpToNextAt(growth, level){ return Math.round(50*Math.pow(growth, level-1)/5)*5; }
+function xpToNext(level){ return xpToNextAt(XP_GROWTH, level); }
+function legacyXpToNext(level){ return xpToNextAt(1.55, level); }
 function lifetimeXp(p, cost){
   var total=p.xp||0;for(var level=1;level<(p.level||1);level++)total+=cost(level);return total;
 }
 function migrateXpCurve(){
   if(!RUN||!player)return false;
   if((RUN.xpCurveVersion||0)>=XP_CURVE_VERSION){player.xpNext=xpToNext(player.level);return false;}
-  var total=lifetimeXp(player,legacyXpToNext),oldLevel=player.level||1,newLevel=1;
+  var was=XP_GROWTH_BY_VERSION[RUN.xpCurveVersion||1]||1.55;
+  var total=lifetimeXp(player,function(l){ return xpToNextAt(was,l); }),oldLevel=player.level||1,newLevel=1;
   while(newLevel<20&&total>=xpToNext(newLevel)){total-=xpToNext(newLevel);newLevel++;}
   for(var level=oldLevel+1;level<=newLevel;level++)player.points=(player.points||0)+levelStatPoints(player,level);
+  if(newLevel<oldLevel){newLevel=oldLevel;total=0;}   /* stat points are spent; the level stays, the bar restarts */
   player.level=newLevel;player.xp=newLevel>=20?Math.min(total,xpToNext(20)-1):total;player.xpNext=xpToNext(newLevel);
   RUN.xpCurveVersion=XP_CURVE_VERSION;
   return newLevel!==oldLevel;

@@ -221,7 +221,6 @@ function bars(){
   var mc=Object.keys(player.motes).filter(function(m){ return player.motes[m]>0; });
   if(mc.length) h+='<span class="chip" title="Motes">'+mc.map(function(m){ return '<span class="dot" style="background:'+AFF_COL[m]+';width:8px;height:8px"></span>'+player.motes[m]; }).join(' ')+'</span>';
   if(player.god) h+=faithChipHTML();
-  var bc=$('bClose'); if(bc){ var canClose=false; for(var cy=-1;cy<=1;cy++) for(var cx=-1;cx<=1;cx++) if((cx||cy) && at(player.x+cx,player.y+cy)===OPEN) canClose=true; bc.disabled=!canClose; bc.title = canClose ? 'Close the open door next to you (Shift+C, or click the door)' : 'Stand next to an open door (not in the doorway) to close it'; }
   hud.innerHTML=h;
 }
 
@@ -247,7 +246,7 @@ function playerShield(){ return Math.max(0,Math.floor(player.iceArmor||0)) + ((p
 function faithChipHTML(){
   var g=GODS[player.god], r=godRank();
   var h='<span class="chip faithchip" title="'+g.name+' \u2014 open with P" style="color:'+g.color+'" onclick="showSheet(\'Faith\')">'+
-        '<span class="gdot"></span><span class="gname">'+g.name.replace(/^(Mother|Father|Lord|Lady|Old|The)\s+/,'').split(/[ ,]/)[0]+'</span>';
+        '<span class="gdot"></span>';   /* 2026-09-22 (Justin): no name on the chip - it is the hover title, and the row needs the room */
   if(g.chaos){
     var am=Math.round(player.amusement||0);
     var nx=PIETY_RANKS[r]||null, pv=PIETY_RANKS[r-1]||0, pp=nx ? clamp(((player.piety||0)-pv)/(nx-pv),0,1) : 1;
