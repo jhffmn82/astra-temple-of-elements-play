@@ -26,9 +26,9 @@ function weatheredMasonry(img){
   function grain(x,y,s){var n=Math.imul(x+17,374761393)^Math.imul(y+31,668265263)^s;n=Math.imul(n^(n>>>13),1274126177);return ((n^(n>>>16))>>>0)/4294967296;}
   for(var y=0;y<c.height;y++)for(var x=0;x<c.width;x++){
     var i=(y*c.width+x)*4, lum=(d[i]+d[i+1]+d[i+2])/3;
-    if(!d[i+3]||lum<33)continue; // keep dark mortar clean
+    if(!d[i+3]||lum<16)continue; // preserve deep joints without skipping dark brick
     var u=x>>1,v=y>>1,n=grain(u,v,71),patch=grain(u>>2,v>>2,193);
-    var delta=(n-.5)*13+(patch-.5)*10;
+    var delta=((n-.5)*20+(patch-.5)*15)*Math.min(1,(lum-16)/22);
     if(n<.065)delta-=9; else if(n>.96)delta+=6;
     for(var k=0;k<3;k++)d[i+k]=Math.max(0,Math.min(255,d[i+k]+delta));
   }
@@ -37,8 +37,8 @@ function weatheredMasonry(img){
 function surfImg(name){
   /* a biome or plane with its own stone uses it: surface-crypt-floor, surface-light-floor ... */
   var pre = (typeof floorMeta!=='undefined' && floorMeta && floorMeta.plane) ? floorMeta.plane : (typeof bidx==='function' && bidx()===1 ? 'crypt' : null);
-  if(pre && AS.surface && AS.surface[pre+'-'+name]) return atl('surface-'+pre+'-'+name+'.png');
-  var img=(AS.surface && AS.surface[name]) ? atl('surface-'+name+'.png') : null;
+  var key=pre && AS.surface && AS.surface[pre+'-'+name] ? pre+'-'+name : name;
+  var img=(AS.surface && AS.surface[key]) ? atl('surface-'+key+'.png') : null;
   return ['face','top','rim-n','rim-v'].indexOf(name)>=0 ? weatheredMasonry(img) : img;
 }
 function surfSalt(){ return ((typeof worldSeed==='number' ? worldSeed : 0) % 9973) + floorNo*31; }

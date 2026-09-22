@@ -218,21 +218,21 @@ function drawVines(x, y, px, py, alpha, now){
   var H=function(k){ return grassHash(x,y,k); }, t=ANIM.reduce?0:now/1000;
   ctx.save(); ctx.globalAlpha=alpha; ctx.lineCap='round'; ctx.lineJoin='round';
   for(var v=0; v<4; v++){
-    var ax=px+TS*(0.05+0.9*H(v)), ay=py+TS*(0.1+0.8*H(v+10));
+    var ax=px+TS*(0.42+0.12*H(v)), ay=py+TS*(0.48+0.12*H(v+10));
     var bx=px+TS*(0.05+0.9*H(v+20)), by=py+TS*(0.1+0.8*H(v+30));
     var mx=(ax+bx)/2+(H(v+40)-0.5)*TS*0.6 + Math.sin(t*0.8+v)*TS*0.02, my=(ay+by)/2+(H(v+50)-0.5)*TS*0.6;
-    ctx.strokeStyle='#1E3316'; ctx.lineWidth=Math.max(2.5,TS*0.075);
+    ctx.strokeStyle='#263021'; ctx.lineWidth=Math.max(1,TS*0.028);
     ctx.beginPath(); ctx.moveTo(ax,ay); ctx.quadraticCurveTo(mx,my,bx,by); ctx.stroke();
-    ctx.strokeStyle='#3B5A26'; ctx.lineWidth=Math.max(1.5,TS*0.04);
+    ctx.strokeStyle='#556043'; ctx.lineWidth=Math.max(0.5,TS*0.012);
     ctx.beginPath(); ctx.moveTo(ax,ay); ctx.quadraticCurveTo(mx,my,bx,by); ctx.stroke();
-    for(var k=1;k<5;k++){
-      var q=k/5, qx=(1-q)*(1-q)*ax+2*(1-q)*q*mx+q*q*bx, qy=(1-q)*(1-q)*ay+2*(1-q)*q*my+q*q*by;
-      if(H(v*10+k+60)<0.55){
-        var la=H(v*10+k+70)*Math.PI*2 + Math.sin(t*1.3+k+v)*0.15, lr=TS*0.09;
-        ctx.fillStyle= H(v*10+k+80)<0.5 ? '#4E7A30' : '#35592A';
+    for(var k=1;k<8;k++){
+      var q=k/8, qx=(1-q)*(1-q)*ax+2*(1-q)*q*mx+q*q*bx, qy=(1-q)*(1-q)*ay+2*(1-q)*q*my+q*q*by;
+      if(H(v*10+k+60)<0.85){
+        var la=Math.atan2((1-q)*(my-ay)+q*(by-my),(1-q)*(mx-ax)+q*(bx-mx))+(k%2?1:-1)*0.9, lr=TS*(0.032+H(v*10+k+70)*0.025);
+        ctx.fillStyle= H(v*10+k+80)<0.5 ? '#667044' : '#46573A';
         ctx.beginPath(); ctx.ellipse(qx+Math.cos(la)*lr*0.8, qy+Math.sin(la)*lr*0.8, lr, lr*0.45, la, 0, Math.PI*2); ctx.fill();
       } else {
-        ctx.fillStyle='#C9BFA0'; var th=Math.max(1.5,TS*0.035); ctx.fillRect(qx-th/2, qy-th*1.6, th, th*1.4);
+        ctx.fillStyle='#8B8861'; var th=Math.max(.5,TS*0.014); ctx.fillRect(qx-th/2, qy-th*1.6, th, th*1.4);
       }
     }
   }

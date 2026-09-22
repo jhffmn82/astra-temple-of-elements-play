@@ -18,10 +18,10 @@ function audioInit(){
   AUDIO.sfxBus=c.createGain(); AUDIO.sfxBus.gain.value=AUDIO.vol.sfx; AUDIO.sfxBus.connect(AUDIO.master);
   AUDIO.musicBus=c.createGain(); AUDIO.musicBus.gain.value=AUDIO.musicOn?AUDIO.vol.music:0; AUDIO.musicBus.connect(AUDIO.master);
   /* a generated impulse response gives everything a stone-room echo */
-  var len=c.sampleRate*1.8, ir=c.createBuffer(2,len,c.sampleRate);
+  var len=Math.floor(c.sampleRate*0.65), ir=c.createBuffer(2,len,c.sampleRate);
   for(var ch=0;ch<2;ch++){ var d=ir.getChannelData(ch); for(var i=0;i<len;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/len,3.2); }
   AUDIO.verb=c.createConvolver(); AUDIO.verb.buffer=ir;
-  var vg=c.createGain(); vg.gain.value=0.22; AUDIO.verb.connect(vg); vg.connect(AUDIO.master);
+  var vg=c.createGain(); vg.gain.value=0.08; AUDIO.verb.connect(vg); vg.connect(AUDIO.sfxBus);
   if(AUDIO.pendingMusic) playMusic(AUDIO.pendingMusic);
 }
 ['pointerdown','keydown'].forEach(function(ev){ window.addEventListener(ev, audioInit, {passive:true}); });
@@ -48,7 +48,7 @@ function loadFile(name, cb){
     })
     .catch(function(){ finish(null); });
 }
-var SFX_LAST={},SFX_VOICES=[];
+var SFX_LAST={},SFX_VOICES=[],SFX_STEP=0;
 function sfx(name, opts){
   if(!AUDIO.ctx || AUDIO.muted || !name) return;
   var now=performance.now(); if(SFX_LAST[name] && now-SFX_LAST[name]<40) return; SFX_LAST[name]=now;
@@ -56,13 +56,15 @@ function sfx(name, opts){
   /* game sounds follow the animation queue: a swing sounds when the swing plays, not when the key was pressed */
   var at = opts.at || (name.indexOf('ui-')!==0 && typeof fxClock==='number' ? Math.max(now, fxClock) : now);
   var delay=Math.max(0, (at-now)/1000);
-  loadFile(name, function(buf){
+  var file=name==='step-stone' ? ['step-stone','step-stone-1','step-stone-3','step-stone-2'][SFX_STEP++%4] : name;
+  var foley=/^(step-|swing$|miss$|hit-|parry$|block$|arrow-hit$)/.test(name);
+  loadFile(file, function(buf){
     if(AUDIO.muted || performance.now()>at+500)return; // Never replay stale impacts after slow decoding.
     var c=AUDIO.ctx, t=c.currentTime+Math.max(0,(at-performance.now())/1000);
     if(buf){
-      var s=c.createBufferSource(); s.buffer=buf; s.playbackRate.value=opts.rate||(0.94+Math.random()*0.12);
+      var s=c.createBufferSource(); s.buffer=buf; s.playbackRate.value=opts.rate||(foley?1:(0.94+Math.random()*0.12));
       while(SFX_VOICES.length>=24){var old=SFX_VOICES.shift();try{old.stop();}catch(e){}}
-      var g=c.createGain(); g.gain.value=opts.vol===undefined?1:opts.vol; s.connect(g); g.connect(AUDIO.sfxBus); g.connect(AUDIO.verb);
+      var g=c.createGain(); g.gain.value=opts.vol===undefined?1:opts.vol; s.connect(g); g.connect(AUDIO.sfxBus); if(name.indexOf('step-')!==0)g.connect(AUDIO.verb);
       SFX_VOICES.push(s);s.onended=function(){var i=SFX_VOICES.indexOf(s);if(i>=0)SFX_VOICES.splice(i,1);s.disconnect();g.disconnect();};s.start(t);
     } else synth(name, t, opts);
   });

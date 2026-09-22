@@ -227,6 +227,9 @@ function ptCellRaster(x, y){
         }
         if(K(u2-1,v2)===0 || K(u2+1,v2)===0 || K(u2,v2-1)===0) col=ptMix(col, M.edge, 0.55);
       }
+      /* Fine rock grain follows world coordinates, including cliff faces. */
+      var rockGrain=(hash2(Math.floor(wx*R),Math.floor(wy*R),salt+114)-0.5)*10;
+      col=[col[0]+rockGrain,col[1]+rockGrain,col[2]+rockGrain];
     } else {
       /* floor: broad calm slabs; joints on only some edges, low contrast */
       var sl=ptVor(wx, wy, 2.1, salt+31), tone=hash2(sl.ix,sl.iy,salt+32);
