@@ -10,8 +10,8 @@
 /* ============ helpers ============ */
 var $ = function(id){ return document.getElementById(id); };
 var clamp = function(v,a,b){ return Math.max(a, Math.min(b, v)); };
-function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; var t=Math.imul(a^a>>>15,1|a);
-  t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function mulberry32(a){ var next=function(){ a|=0; a=a+0x6D2B79F5|0; var t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; };next.state=function(){return a>>>0;};return next; }
 var rng = mulberry32(48213);
 function ri(a,b){ return a + Math.floor(rng()*(b-a+1)); }
 function pick(arr){ return arr[Math.floor(rng()*arr.length)]; }

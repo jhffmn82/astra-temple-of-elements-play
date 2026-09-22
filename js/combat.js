@@ -91,7 +91,7 @@ function derive(p){
   if(p.cls==='mage') pool = Math.ceil(pool*1.3);
   if(hasP('archmage')) pool = Math.ceil(pool*1.2);
   if(p.off && p.off.manaPct) pool = Math.ceil(pool*(1+p.off.manaPct));
-  if(p.god==='vellum') pool = Math.ceil(pool*(1+0.08*pietyRank(p.piety||0)));
+  if(p.god==='vellum') pool = Math.ceil(pool*(1+0.05*pietyRank(p.piety||0)));
   p.maxmp = sHP(pool);
   var rank=godRank();
   p.acc = 60 + 2*s.agi + (p.weapon.acc||0) + (hasGod('reginald')?4*rank:0) + (p.weapon.enchant==='light'?Math.round(10*enchantScale('light')):0) + (buff('rally')?10:0);
@@ -191,8 +191,8 @@ function applyDamage(target, amount, type, source){
     var flat = Math.ceil(arm/2) + barrier;
     if(target===player && player.aff.earth) flat += player.aff.earth;
     if(target===player && player.st.stone) flat += 3;
-    d = Math.max(1, d - flat) * (1 - Math.min(0.5, 0.02*arm));
-    if(target.st && target.st.frozen){ d *= (target!==player && (player.aff.water||0)>=3) ? 2.5 : 2;   /* Water 3 Shatter: +50% more */
+    d = Math.max(0, d - flat) * (1 - Math.min(0.5, 0.02*arm));
+    if(target.st && target.st.frozen){ d *= 2;   /* Freeze vulnerability; the former Shatter bonus is superseded. */
       delete target.st.frozen; if(target!==player) target.st.imm_frozen={t:3}; floatText(target.x,target.y,'shatter','ice'); }
   } else {
     var rm = resistMult(target, type);
@@ -201,7 +201,8 @@ function applyDamage(target, amount, type, source){
     if(d>0 && target.st && target.st.frozen){ delete target.st.frozen; if(target!==player) target.st.imm_frozen={t:3}; }
   }
   if(target===player){
-    if(buff('laststand')) d*=0.65;
+    if(buff('laststand')) d*=0.5;
+    if(d>0 && source && source.foe && hasP('fortitude') && !(player.fortUntil>player.t)){d*=.5;player.fortUntil=player.t+1500;log('Fortitude blunts the blow.','c-good');}
     if(player.ward>0 && d>0){ if(!(player.buffs.arcaneward>0)) player.ward=0; else { var wa=Math.min(player.ward, d); player.ward-=wa; d-=wa; if(wa>0) floatText(player.x,player.y,'-'+Math.round(wa),'magic'); if(player.ward<=0) log('Your Arcane Ward shatters.','c-info'); } }
     if(player.iceArmor>0 && d>0){ var ab=Math.min(player.iceArmor, d); player.iceArmor-=ab; d-=ab; if(ab>0) floatText(player.x,player.y,'-'+Math.round(ab),'ice'); }
     if(player.hideShield>0 && d>0){ var hs=Math.min(player.hideShield, d); player.hideShield-=hs; d-=hs; if(hs>0) floatText(player.x,player.y,'-'+Math.round(hs),'phys'); }   /* Grom's Iron Hide */
@@ -210,7 +211,7 @@ function applyDamage(target, amount, type, source){
   }
   if(target.challenged && target.challengeBoost) d*=1.2;
   if(target.dazed>0) d*=1.5;
-  d=Math.max(type==='phys'||d>0 ? 1 : 0, Math.round(d));
+  d=Math.max(0, Math.round(d));
   target.hp -= d;
   target._hit = Math.max(performance.now(), fxClock);
   if(target===player && d>0){ setClip(player,'hurt'); sfx('player-hurt',{at:target._hit}); if(typeof onPlayerHurt==='function') onPlayerHurt(d); }
@@ -220,6 +221,7 @@ function applyDamage(target, amount, type, source){
   return d;
 }
 function heroicResolve(){
+  return; // Heroic Resolve was explicitly removed in the recovered race ruling.
   if(player.race!=='human') return;
   var key='b'+Math.floor((floorNo-1)/5);
   RUN.resolve = RUN.resolve || {};
@@ -279,13 +281,13 @@ function attack(att, def, mult, label){
   else { lungeFx(att, def.x, def.y); sfx('swing',{at:tSwing}); }
   if(att!==player && att.base.sfx) sfx(att.base.sfx+'-attack',{at:tSwing});
   if(def===player && att.foe) ch=hostileHitChance(ch);
-  if(def===player && player.parry && dist(att,def)<=1 && rng()<player.parry){
+  if(def===player && player.parry && dist(att,def)<=1 && combatRoll(player.parry,true)){
     log('You parry '+att.name+'.','c-good'); sfx('parry'); floatText(def.x,def.y,'parry','miss');
     if(att.hp>0){ log('Riposte!','c-good'); attack(player, att, 0.5, 'Riposte'); }
     return;
   }
-  var blocked = (def===player && player.block && rng()<player.block);
-  if(rng() > ch){
+  var blocked = (def===player && player.block && combatRoll(player.block,true));
+  if(att===player ? !combatRoll(ch,true) : def===player ? combatRoll(1-ch,true) : rng()>ch){
     log(who+' miss'+(att===player?'':'es')+' '+foe+' <span class="roll">('+Math.round(ch*100)+'% to hit)</span>','c-miss');
     floatText(def.x, def.y, 'miss', 'miss'); sfx('miss'); if(att===player && def.state!=='hunt' && def.state!=='throne') def.state='hunt'; if(att===player) def.caughtOff=-1; return;
   }
@@ -314,22 +316,22 @@ function attack(att, def, mult, label){
     if(player.weapon.unarmed && player.pummel>0){ base*=2; player.pummel--; applyStatus(def,'stun',1); }
     var unaware = offGuard(def) || def.st.stun || def.st.frozen || player.hidden>0 || (typeof smokeAmbush==='function' && smokeAmbush(def)) || def.surprised;
     var critCh = player.crit + (unaware && player.aff.shadow ? 0.05*player.aff.shadow : 0);
-    crit = rng() < critCh;
+    crit = combatRoll(critCh,true);
     if(unaware){ surprise=true; base *= isScoundrel() ? 2.0 : 1.5; if(player.weapon.name.indexOf('Dagger')>=0) base*=1.2;
       if(hasGod('reginald')) pietyViolation('a surprise attack', 12); }
   } else {
     crit = !(def===player && hasP('bulwark')) && rng() < 0.05;
   }
-  if(crit) base *= 1.6;
+  if(crit){base *= 1.6;if(att===player && typeof gainAmusement==='function')gainAmusement(1);}
   if(blocked){ if(typeof onShieldBlock==='function') onShieldBlock(att, def, base); base *= 0.25; }
-  if(def===player && hasP('fortitude') && player.fortCd<=0){ player.fortCd=15; base *= 0.5; log('Fortitude blunts the blow.','c-good'); }
+  /* Fortitude resolves after mitigation in applyDamage. */
   LAST_HIT={att:att, def:def, crit:crit, surprise:surprise, melee:!ranged};
   /* 2026-09-18: two different kinds of number used to share one variable. `extra` is damage still to be
      taken off at the end of the block; `applied` is damage applyDamage has ALREADY taken off (the Light
      mastery smite, and the light-air combo). Mixing them meant a smite proc was subtracted twice on any
      weapon that was not light-enchanted, while a light-enchanted weapon skipped the subtraction entirely
      and silently dropped the fire-affinity bonus and the enchant's own +25% against undead. */
-  var phys=applyDamage(def, base, 'phys', att), extra=0, applied=0, note='', el=null;
+  var phys=applyDamage(def, base, att.swarm?'dark':'phys', att), extra=0, applied=0, note='', el=null;
   sfx(hitSfx(att,def,crit,blocked), {at:def._hit});
   if(att===player){
     var ench = player.weapon.enchant;
@@ -463,7 +465,7 @@ function tickStatus(e){
     if(gAt(e.x,e.y)===G_GRASS || gAt(e.x,e.y)===G_SHORT) ignite(e.x,e.y, e===player?'player':null);
     if(e.hp<=0){ if(e===player){ heroicResolve(); if(player.hp<=0){ kill(e,null); return false; } } else { kill(e, e.lastHitBy||null); return false; } }
   }
-  if(s.poison){ var pd=s.poison.d||2; if(e===player && player.buffs && player.buffs.poisonward>0) pd=Math.max(1,Math.round(pd*0.5)); e.hp-=pd; floatText(e.x,e.y,String(pd),'poison'); s.poison.t--; if(s.poison.t<=0) delete s.poison; if(e.hp<=0){ if(e===player){ heroicResolve(); if(player.hp<=0){ kill(e,null); return false; } } else { kill(e,null); return false; } } }
+  if(s.poison){ var pd=Math.max(1,Math.round(e.maxhp*(e.base&&e.base.boss?.05:.10))); if(e===player && ((player.buffs && player.buffs.poisonward>0)||(player.aff.earth||0)>=6)) pd=0; e.hp-=pd; floatText(e.x,e.y,String(pd),'poison'); s.poison.t--; if(s.poison.t<=0) delete s.poison; if(e.hp<=0){ if(e===player){ heroicResolve(); if(player.hp<=0){ kill(e,null); return false; } } else { kill(e,null); return false; } } }
   if(s.aura && e===player){
     ents.forEach(function(o){ if(o.foe && dist(o,player)<=2){ var ad=applyDamage(o,s.aura.d||3,'dark',player); floatText(o.x,o.y,String(ad),'dark'); healPlayer(1); if(o.hp<=0) kill(o,player); } });
   }
@@ -516,14 +518,13 @@ function bossDefeated(e){
   explosionFx(e.x,e.y); playMusic('dungeon');
   ents.forEach(function(o){ if(o.foe && o.guard) applyStatus(o,'fear',6); });
 }
+function levelStatPoints(character,level){return 1+(character.cls==='tourist' && level%2===0?1:0)+(character.race==='human' && level%3===0?1:0);}
 function gainXP(n){
   player.xp += n;
   floatText(player.x,player.y,'+'+n+' xp','xp');
   if(player.level>=20){ player.xp=Math.min(player.xp, player.xpNext-1); return; }
   while(player.xp >= player.xpNext && player.level<20){
-    player.xp -= player.xpNext; player.level++; player.points++;
-    if(player.cls==='tourist' && player.level%2===0) player.points++;
-    if(player.race==='human' && player.level%3===0) player.points++;
+    player.xp -= player.xpNext; player.level++; player.points+=levelStatPoints(player,player.level);
     player.xpNext = typeof xpToNext==='function' ? xpToNext(player.level) : Math.round(player.xpNext*1.35);
     var old=player.maxhp; derive(player);
     player.hp += (player.maxhp-old); player.mp=player.maxmp;
@@ -566,7 +567,7 @@ function castSelf(key, A){
     floatText(player.x,player.y,'+'+hh,'heal'); sparkleFx(player.x,player.y,'heal',30); sfx('heal');
     if(player.race==='gloomling'){ /* refused, but just in case */ }
     log('Saint Glimmer mends you. +'+hh+' HP.','c-good'); }
-  else if(key==='arcaneward'){ player.buffs.arcaneward=10; player.ward=Math.round(player.maxmp*(0.25+0.05*r)*div); log('Arcane Ward: '+player.ward+' damage will break on the ward first.','c-good'); sfx("cast-generic"); ringFx(player.x,player.y,'#7FA8FF',2); }
+  else if(key==='arcaneward'){ player.buffs.arcaneward=10; player.ward=Math.round(player.maxmp*(0.10+0.02*r)); log('Arcane Ward: '+player.ward+' damage will break on the ward first.','c-good'); sfx("cast-generic"); ringFx(player.x,player.y,'#7FA8FF',2); }
   else if(key==='temper'){ player.buffs.temper=12; derive(player); log('Old Anvil tempers your '+player.weapon.name+': +2 for 12 turns.','c-good'); sfx('forge-enchant'); sparkleFx(player.x,player.y,'fire',20); }
   else if(key==='rolldice'){ sfx('wobbles-giggle'); wobblesIntervention(false); }
   return true;
@@ -597,7 +598,7 @@ function inRange(x,y){
 function spellPower(A){
   var charPool = 0.04*(player.stats.foc-10) + (hasP('arcaneStudy')?0.10:0) + (hasP('archmage')?0.10:0);
   var arm=player.armorItem||{}, itemPool = focusBonus(player.weapon) + (player.twoHanded ? 0 : focusBonus(player.off));
-  var godPool = player.god==='vellum' ? 0.08*godRank() : 0;
+  var godPool = player.god==='vellum' ? 0.05*godRank() : 0;
   return Math.max(0.3,(1+charPool+godPool)) * (1+itemPool);
 }
 function castAt(x,y){
@@ -631,7 +632,7 @@ function castAt(x,y){
     if(propAt(end.x,end.y) && (A.type==='phys'||A.type==='lightning')) damageProp(propAt(end.x,end.y), 'player', A.type);
     endTurn(); return true;
   }
-  var hit = A.always || rng() < hitChance(player.acc+10, evaOf(f));
+  var hit = A.always || combatRoll(hitChance(player.acc+10, evaOf(f)),true);
   if(!hit){ log(A.name+' misses '+f.name+'.','c-miss'); floatText(f.x,f.y,'miss','miss'); endTurn(); return true; }
   var dmgType = A.type==='magic' ? 'magic' : A.type;
   var base;
@@ -640,8 +641,8 @@ function castAt(x,y){
   if(key==='smite' && (f.base.undead||f.base.shadowy)) base=Math.round(base*1.5);
   if(player.aff.fire && !A.divine) base += player.aff.fire;   /* Kindled: +1 per Fire point on spells too */
   var unaware = offGuard(f) || f.st.stun || f.st.frozen || player.hidden>0;
-  var crit = rng() < player.crit + (!A.tech && hasP('archmage')?0.05:0) + (unaware&&player.aff.shadow?0.05*player.aff.shadow:0);   /* spells use the normal crit chance */
-  if(crit) base=Math.round(base*1.6);
+  var crit = combatRoll(player.crit + (!A.tech && hasP('archmage')?0.05:0) + (unaware&&player.aff.shadow?0.05*player.aff.shadow:0),true);   /* spells use the normal crit chance */
+  if(crit){base=Math.round(base*1.6);if(typeof gainAmusement==='function')gainAmusement(1);}
   else if(!A.tech && !A.divine && rng()<orbCrit()){ crit=true; base=Math.round(base*1.5); }
   var wasAsleep = f.state==='asleep';
   LAST_HIT={att:player, def:f, crit:crit, surprise:unaware, spell:true};
@@ -652,7 +653,7 @@ function castAt(x,y){
   var note='';
   if(A.status){ for(var k in A.status){
     if(k==='chill') { addChill(f); note+=' chilled'; }
-    else if(k==='stun' && key==='sap'){ if(f.stunImmune){ f.state='hunt'; note+=' (immune to stuns now)'; } else { applyStatus(f,'stun', wasAsleep?6:A.status.stun); f.state='hunt'; note+=' knocked out'; } }
+    else if(k==='stun' && key==='sap'){ if(f.stunImmune){ f.state='hunt'; note+=' (already Sapped)'; } else { applyStatus(f,'stun', wasAsleep?6:A.status.stun); f.state='hunt'; note+=' knocked out'; } }
     else { applyStatus(f,k,A.status[k], k==='burn'?sDMG(3):undefined); note+=' '+k; } } }
   if(A.stunChance && rng()<A.stunChance){ applyStatus(f,'stun',1); note+=' stunned'; }
   if(A.blindChance && rng()<A.blindChance){ applyStatus(f,'blind',2); note+=' blinded'; }
@@ -957,7 +958,7 @@ function allyAct(e){
 }
 function actCost(e){
   var sp = e===player ? player.speed : e.base.speed;
-  if(e.st && e.st.chill) sp*=0.67;
+  if(e.st && e.st.chill) sp*=1-chillSlow(e);
   var c = 10000/sp;
   if(e===player){
     c *= 1 - 0.02*(player.stats.agi-10);                          /* Agility: -2% per point above 10 on non-movement actions */
@@ -973,7 +974,7 @@ function actCost(e){
 }
 function moveCost(){
   /* movement ignores Agility and attack speed (Air and Fleet handle it) */
-  var sp=player.speed; if(player.st && player.st.chill) sp*=0.67;
+  var sp=player.speed; if(player.st && player.st.chill) sp*=1-chillSlow(player);
   var c=(10000/sp) * (hasP('fleet')?0.85:1) / (1+0.10*(player.aff.air||0));
   if(at(player.x,player.y)===WATER && !player.levitate) c*=1.25;
   return Math.round(c);

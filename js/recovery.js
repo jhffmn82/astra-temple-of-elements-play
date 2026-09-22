@@ -96,7 +96,8 @@ usePrayer=function(pid){
 };
 function spearPath(ax,ay,bx,by){
   var pts=[],x=ax,y=ay,dx=Math.abs(bx-ax),dy=Math.abs(by-ay),sx=ax<bx?1:-1,sy=ay<by?1:-1,err=dx-dy;
-  while(x!==bx||y!==by){var e2=2*err;if(e2>-dy){err-=dy;x+=sx;}if(e2<dx){err+=dx;y+=sy;}if(!inb(x,y)||opaque(x,y))break;pts.push({x:x,y:y});}
+  if(ax===bx&&ay===by)return pts;
+  while(pts.length<6){var e2=2*err;if(e2>-dy){err-=dy;x+=sx;}if(e2<dx){err+=dx;y+=sy;}if(!inb(x,y)||opaque(x,y))break;pts.push({x:x,y:y});}
   return pts;
 }
 var _castAtRecovery=castAt;
@@ -106,7 +107,7 @@ castAt=function(x,y){
   var path=spearPath(player.x,player.y,x,y);if(!path.length)return false;
   player.favor-=5;aiming=null;setClip(player,'cast');sfx('shadow-cast');
   var end=path[path.length-1];boltFx(player.x,player.y,end.x,end.y,'dark');
-  path.forEach(function(p){ents.slice().forEach(function(e){if(e.foe&&e.x===p.x&&e.y===p.y){spellHit(e,BONE_SPEAR,Math.round(sDMG(roll(10,16))*spellPower(BONE_SPEAR)),'dark');finishHit(e);}});});
+  path.forEach(function(p){ents.slice().forEach(function(e){if(e.foe&&e.x===p.x&&e.y===p.y && combatRoll(hitChance(player.acc+10,evaOf(e)),true)){spellHit(e,BONE_SPEAR,Math.round(sDMG(roll(10,16))*spellPower(BONE_SPEAR)),'dark');finishHit(e);}});});
   endTurn();return true;
 };
 

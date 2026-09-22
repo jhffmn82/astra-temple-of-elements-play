@@ -18,7 +18,7 @@ CLASSES.mage.kit        = {main:'staff', alt:null, armor:'robe', off:null};
 CLASSES.scoundrel.passive = 'Sneaky: surprise attacks x2. Enemies notice you 2 tiles closer and half as often. Shadowstep hides you when no enemy is adjacent.';
 CLASSES.scoundrel.blurb = 'A dagger in each hand and a bow across the back. Sap knocks a target out; the hit that wakes it is a surprise critical.';
 CLASSES.tourist.passive = 'Well-Traveled: +1 stat point every 2 levels, +25% experience, and 1 free stat point to start.';
-RACES.human.blurb = 'Adaptable. +1 to every stat, +1 stat point every 3 levels, piety +25%, and once per biome survives a killing blow at 1 HP.';
+RACES.human.blurb = 'Adaptable. +1 to every stat, +1 stat point every 3 levels, piety +25%.';
 RACES.fae.blurb   = RACES.fae.blurb + ' Takes 25% more damage from the element opposite its court.';
 
 /* 2026-09-20: Justin - "scoundrel shouldn't have two paths, the starting set should just be 2 daggers and a bow".
@@ -46,7 +46,7 @@ ABILITIES.sap.cost = 7;
 /* 2026-09-17: Sap reaches 2 tiles whatever you hold (a bow no longer makes it a 6-tile knockout), and an enemy
    that has been sapped is immune to stuns from then on */
 ABILITIES.sap.range = 2; delete ABILITIES.sap.useWeaponRange;
-ABILITIES.sap.desc = 'Range 2: knocks the target out for 3 turns (6 if it was unaware). The hit that wakes it is a surprise critical. A sapped enemy can never be stunned again.';
+ABILITIES.sap.desc = 'Range 2: knocks the target out for 3 turns (6 if it was unaware). The hit that wakes it is a surprise critical. A target can only be Sapped once; other Stuns still work.';
 ABILITIES.double.desc = 'An attack: two weapon hits on an adjacent enemy for the time of one attack.';
 ABILITIES.missile.desc = 'Always hits; magic damage nothing resists. +1 base damage per affinity point. For each element you hold, a 25% chance (+5% per point) to add its effect: Burning, Chill, an arc, Root, Blind or Fear.';
 ABILITIES.shadowstep = {name:'Shadowstep', cost:0, cd:15, kind:'self', tech:true, icon:'ic-shadowstep', desc:'With no enemy next to you, slip into hiding for 3 turns; hunting enemies lose you. 15-turn cooldown.'};
@@ -106,7 +106,7 @@ playerShield = function(){ return _playerShieldCls() + Math.max(0, Math.floor(pl
    piety grows - it gets stronger. Saint Glimmer's Heal already scales (+5% a rank, combat.js castSelf) and
    Sylla's Into the Dark does the same; that is what rank buys. */
 var _gainPietyCls = gainPiety;
-gainPiety = function(n, why){ return _gainPietyCls(player && player.cls==='cleric' ? n*1.25 : n, why); };
+gainPiety = function(n, why){ return _gainPietyCls(n, why); };
 
 /* Experience curve (level cap 20), refit 2026-09-17 after doubling monster density: XP for the next level =
    50 x 1.55^(level-1), rounded to 5 (50, 80, 120, 185, 290, 450, 695, 1075 ...). Measured biome 1 full clears on the
@@ -160,7 +160,7 @@ endTurn = function(){
   if(!player || player.hp<=0) return;
   player.noisy=false;
   if(player.guardMax>0 && (player.guard||0)<player.guardMax){
-    var fighting=ents.some(function(e){ return e.foe && e.state==='hunt' && vis[idxOf(e.x,e.y)]; });
+    var fighting=player.t-(player.lastDamageTime||0)<500;
     if(!fighting) player.guard=Math.min(player.guardMax, (player.guard||0)+1);
   }
 };
@@ -224,4 +224,4 @@ function noticeChance(e, see, d, asleep){
 
 /* a sapped enemy shrugs off every later stun (Sap, Spark, Bellow, Pummel...) */
 var _applyStatusSap = applyStatus;
-applyStatus = function(e, key, turns, extra){ if(key==='stun' && e && e!==player && e.stunImmune) return; return _applyStatusSap(e, key, turns, extra); };
+applyStatus = function(e, key, turns, extra){ return _applyStatusSap(e, key, turns, extra); };

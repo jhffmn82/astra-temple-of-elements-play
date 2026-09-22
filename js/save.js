@@ -68,7 +68,7 @@ function saveSnapshot(label){
   var logHtml=[]; var L=$('log'); if(L) for(var i=Math.max(0,L.children.length-40); i<L.children.length; i++) logHtml.push([L.children[i].className, L.children[i].innerHTML]);
   return {format:SAVE_FORMAT, savedAt:new Date().toISOString(), label:label||'',
     summary:{runId:runId(), name:player.name, who:player.who, cls:player.cls, race:player.race, god:player.god||null, level:player.level, floor:floorNo, turns:RUN.turns||turn},
-    state:saveEncode(g), log:logHtml};
+    state:saveEncode(g), rngState:typeof rng.state==='function'?rng.state():null, log:logHtml};
 }
 function saveApply(data){
   if(!data) throw new Error('No save data.');
@@ -78,7 +78,7 @@ function saveApply(data){
   else throw new Error('Not a Forge of the Elements save.');
   SAVE_KEYS.forEach(function(k){ if(g[k]!==undefined) window[k]=g[k]; });
   /* everything derived or visual is rebuilt rather than restored */
-  rng=mulberry32(((worldSeed||1) ^ (turn*2654435761))>>>0);
+  rng=mulberry32(Number.isInteger(data.rngState)?data.rngState:((worldSeed||1) ^ (turn*2654435761))>>>0);
   fx=[]; PARTS.length=0; aiming=null; LAST_HIT=null;
   if(typeof modalOpen!=='undefined' && modalOpen && typeof closeModal==='function') closeModal();
   if(typeof SURF_CACHE!=='undefined') SURF_CACHE.key=null;
@@ -89,7 +89,11 @@ function saveApply(data){
   if(player.off && !player.off.kind && player.off.name===EMPTY_OFF.name) player.off=EMPTY_OFF;
   saveMigrateSigils();
   if(typeof ensureRuneLooks==='function') ensureRuneLooks();
+  var savedHP=player.hp, savedMP=player.mp;
   derive(player);
+  // Inner derive layers clamp against intermediate pools before later gear bonuses.
+  // Loading must preserve the saved resources, bounded by the FINAL derived pools.
+  player.hp=Math.min(savedHP,player.maxhp);player.mp=Math.min(savedMP,player.maxmp);
   var L=$('log'); if(L){ L.innerHTML=''; (data.log||[]).forEach(function(p){ log(p[1], p[0]); }); }
   log('<b>Game loaded.</b> '+player.name+', level '+player.level+', floor '+floorNo+'.','c-kill');
   var ov=$('over'); if(ov) ov.style.display='none';

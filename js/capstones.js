@@ -27,7 +27,7 @@ attack = function(att, def, mult, label){
   if(knock && def && def.hp>0 && def.hp<hp0 && !(def.base && def.base.boss)){
     var nx=def.x+Math.sign(def.x-player.x), ny=def.y+Math.sign(def.y-player.y);
     if(walkable(nx,ny) && !occupied(nx,ny)){ def.x=nx; def.y=ny; def._lx=undefined; }
-    log('<b>Mountain’s Fists</b> hurl the '+def.name+' back.','c-good');
+    log('<b>Mountainâ€™s Fists</b> hurl the '+def.name+' back.','c-good');
   }
   return r;
 };
@@ -44,19 +44,7 @@ applyDamage = function(target, amount, type, source){
     if(undyingLight() && !floorMeta.undyingUsed){
       floorMeta.undyingUsed=true; player.hp=Math.round(player.maxhp*0.5);
       log('<b>Undying Light.</b> Saint Glimmer will not let you fall here.','c-kill'); sparkleFx(player.x,player.y,'light',50); sfx('heal');
-    } else if(capstone('wobbles') && !floorMeta.wobblesSaved){
-      floorMeta.wobblesSaved=true; player.hp=Math.max(1, Math.round(player.maxhp*0.25));
-      var pickR=Math.floor(rng()*3);
-      if(pickR===0){ player.hp=player.maxhp; log('<b>Wobbles giggles.</b> "Not yet!" You are fully healed.','c-kill'); }
-      else if(pickR===1){
-        var spots=[]; for(var y=0;y<MH;y++) for(var x=0;x<MW;x++) if(walkable(x,y) && !occupied(x,y) && inRoom(x,y) && dist(player,{x:x,y:y})>12) spots.push({x:x,y:y});
-        if(spots.length){ var s=pick(spots); player.x=s.x; player.y=s.y; player._lx=undefined; computeFOV(); }
-        log('<b>Wobbles giggles</b> and yanks you somewhere else entirely.','c-kill');
-      } else {
-        if(source && source.foe && !(source.base && source.base.boss)){ var sx=source.x, sy=source.y; ents=ents.filter(function(e){ return e!==source; }); var rat=spawn('rat',sx,sy); rat.name='Very Confused Rat'; rat.noXp=true; rat.state='wander'; }
-        log('<b>Wobbles giggles.</b> Your killer is suddenly a very confused rat.','c-kill');
-      }
-      sfx('wobbles-giggle'); sparkleFx(player.x,player.y,'magic',40);
+
     }
   }
   return d;

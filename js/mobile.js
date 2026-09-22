@@ -155,9 +155,9 @@
   function sync(){
     var on=wantTouch(), was=document.body.classList.contains('touch');
     document.body.classList.toggle('touch', on);
-    /* portrait only: a phone held sideways is a letterbox you cannot see far enough in, so it gets the
-       "turn it upright" card instead. A wide desktop window is never touch, so it is never blocked. */
-    document.body.classList.toggle('needs-portrait', on && innerWidth > innerHeight && innerHeight <= 560);
+    /* Wide phones have a separate three-column landscape layout. Smaller landscape
+       viewports retain the upright prompt because the touch targets cannot fit. */
+    document.body.classList.toggle('needs-portrait', on && innerWidth > innerHeight && innerHeight <= 560 && innerWidth < 740);
     if(on && !was) shortenTop();
     applyZoom();
   }
@@ -171,11 +171,9 @@
     window.addEventListener('pointerdown', function once(){
       window.removeEventListener('pointerdown', once, true);
       var el=document.documentElement;
-      function lockPortrait(){ try{ if(screen.orientation && screen.orientation.lock) screen.orientation.lock('portrait').catch(function(){}); }catch(e){} }
       try{
-        if(!document.fullscreenElement && el.requestFullscreen) el.requestFullscreen({navigationUI:'hide'}).then(lockPortrait, lockPortrait);
-        else lockPortrait();
-      }catch(e){ lockPortrait(); }
+        if(!document.fullscreenElement && el.requestFullscreen) el.requestFullscreen({navigationUI:'hide'}).catch(function(){});
+      }catch(e){}
     }, true);
 
     /* no pinch zoom, no double-tap zoom, no long-press menu on the map */

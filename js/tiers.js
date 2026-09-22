@@ -119,6 +119,7 @@ function allGear(){
   var out=[];
   if(!player) return out;
   (player.sets||[]).forEach(function(s){ if(s) out.push(s); });
+  if(player.ranged && out.indexOf(player.ranged)<0) out.push(player.ranged);
   if(player.armorItem) out.push(player.armorItem);
   if(player.off && player.off!==EMPTY_OFF) out.push(player.off);
   (player.bag||[]).forEach(function(b){ if(b.data && (b.kind==='weapon'||b.kind==='armor'||b.kind==='off')) out.push(b.data); });

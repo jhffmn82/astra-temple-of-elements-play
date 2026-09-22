@@ -560,7 +560,7 @@ function endTurn(){
   var scale=cost/100;
   player.mp = Math.min(player.maxmp, player.mp + player.maxmp*mpRate*scale);
   healPlayer(player.maxhp*hpRate*scale, true);   /* true: natural regeneration, not a heal - it must not stanch bleeding */
-  if(!seesFoe && player.iceArmor<player.iceArmorMax) player.iceArmor=Math.min(player.iceArmorMax, player.iceArmor+0.25);
+  if(player.t-(player.lastDamageTime||0)>=500 && player.iceArmor<player.iceArmorMax) player.iceArmor=Math.min(player.iceArmorMax, player.iceArmor+cost/100);
   spotTraps();
   if(!floorMeta.boss) wanderingSpawn();
   if(typeof godTick==='function') godTick(seesFoe);

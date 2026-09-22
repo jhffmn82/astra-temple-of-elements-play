@@ -23,9 +23,8 @@ function joinGod(id, startPiety){
 function gainPiety(n, why){
   if(!player.god || n<=0) return;
   var g=GODS[player.god];
-  if(g.chaos) player.amusement=Math.min(100,(player.amusement||0)+n);
-  if(player.race==='human') n*=1.25;
-  if(g.loves===player.race) n*=1.25;
+  // Amusement has its own event table; ordinary piety does not award it.
+  n*=1+(player.race==='human'?.25:0)+(g.loves===player.race?.25:0)+(player.cls==='cleric'?.25:0);
   var before=godRank();
   player.piety=(player.piety||0)+n; player.favor=Math.min(100,(player.favor||0)+n);
   var after=godRank();
@@ -40,7 +39,7 @@ function pietyViolation(what, amount){
   if(!player.god) return;
   var g=GODS[player.god];
   if(g.chaos) return;
-  player.piety=Math.max(0,(player.piety||0)-amount); player.favor=Math.max(0,(player.favor||0)-amount);
+  player.piety=Math.max(0,(player.piety||0)-amount); player.favor=0;
   player.violations=(player.violations||0)+1;
   log('<b>'+g.name+'</b> disapproves of '+what+'. (&minus;'+amount+' piety)','c-you'); sfx('wrath');
   if(player.violations>=6 && player.piety<=0){
@@ -73,7 +72,7 @@ function spellConduct(A){
     player.castTurn=turn;
     player.manaSpent=(player.manaSpent||0)+costOf(A);
     while(player.manaSpent>=25){ player.manaSpent-=25; gainPiety(1); }
-    if(godRank()>=3 && costOf(A)>0 && rng()<(godRank()>=5?0.35:0.2)){ player.mp=Math.min(player.maxmp, player.mp+costOf(A)); log('<b>Spell Echo.</b> The mana comes back to you.','c-good'); }
+    // Spell Echo repeats resolution in balance-rulings.js; it no longer refunds mana.
   }
 }
 function sigilConduct(use){
@@ -115,15 +114,10 @@ function godTick(seesFoe){
       var dmg=Math.max(1,Math.round(player.maxhp*0.08)); player.hp=Math.max(1,player.hp-dmg); floatText(player.x,player.y,String(dmg),'dark'); applyStatus(player, pick(['blind','chill','root']), 3); }
     if(player.wrath.t<=0){ log('The wrath of '+GODS[player.wrath.god].name+' passes.','c-info'); player.wrath=null; }
   }
-  if(player.god==='wobbles'){
-    if(seesFoe && player.hp<player.maxhp*0.4) player.amusement=Math.min(100,player.amusement+1.5);
-    else if(!seesFoe) player.amusement=Math.max(0, player.amusement-0.08);
-    if(player.amusement>=60 && rng()<0.015){ player.amusement-=25; wobblesIntervention(false); }
-  }
   if(player.blessed>0){ player.blessed--; if(player.blessed===0) log('The shrine\'s blessing fades.','c-info'); }
 }
 function wobblesIntervention(big){
-  var good = rng() < (big ? 0.7 : 0.6) + (godRank()>=3 ? 0.1 : 0) + (typeof WOBBLE_BONUS==='number' ? WOBBLE_BONUS : 0);   /* Favourite Toy */
+  var good = rng() < (big ? 0.7 : 0.6) + wobbleBias(godRank()) + (typeof WOBBLE_BONUS==='number' ? WOBBLE_BONUS : 0);   /* Favourite Toy */
   sfx('wobbles-giggle');
   var foes=ents.filter(function(e){ return e.foe && vis[idxOf(e.x,e.y)]; });
   if(good){

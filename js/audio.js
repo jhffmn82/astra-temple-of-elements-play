@@ -12,7 +12,9 @@ function audioInit(){
   if(AUDIO.ctx) { if(AUDIO.ctx.state==='suspended') AUDIO.ctx.resume(); return; }
   var AC=window.AudioContext||window.webkitAudioContext; if(!AC) return;
   var c=new AC(); AUDIO.ctx=c;
-  AUDIO.master=c.createGain(); AUDIO.master.gain.value=AUDIO.muted?0:1; AUDIO.master.connect(c.destination);
+  AUDIO.master=c.createGain(); AUDIO.master.gain.value=AUDIO.muted?0:1;
+  var limiter=c.createDynamicsCompressor();limiter.threshold.value=-3;limiter.knee.value=3;limiter.ratio.value=12;limiter.attack.value=.003;limiter.release.value=.15;
+  AUDIO.master.connect(limiter);limiter.connect(c.destination);AUDIO.limiter=limiter;
   AUDIO.sfxBus=c.createGain(); AUDIO.sfxBus.gain.value=AUDIO.vol.sfx; AUDIO.sfxBus.connect(AUDIO.master);
   AUDIO.musicBus=c.createGain(); AUDIO.musicBus.gain.value=AUDIO.musicOn?AUDIO.vol.music:0; AUDIO.musicBus.connect(AUDIO.master);
   /* a generated impulse response gives everything a stone-room echo */
@@ -28,16 +30,24 @@ function toggleMute(){ AUDIO.muted=!AUDIO.muted; if(AUDIO.master) AUDIO.master.g
 function toggleMusic(){ AUDIO.musicOn=!AUDIO.musicOn; if(AUDIO.musicBus) AUDIO.musicBus.gain.setTargetAtTime(AUDIO.musicOn?AUDIO.vol.music:0, AUDIO.ctx.currentTime, 0.3); audioSave(); return AUDIO.musicOn; }
 
 /* ---- file-backed playback with synth fallback ---- */
+var AUDIO_LOADING={},AUDIO_MUSIC_LRU=[];
 function loadFile(name, cb){
   if(AUDIO.files[name]) return cb(AUDIO.files[name]);
   if(AUDIO.missing[name]) return cb(null);
   if(!(window.AUDIO_FILES && window.AUDIO_FILES.indexOf(name)>=0)){ AUDIO.missing[name]=true; return cb(null); }
+  if(AUDIO_LOADING[name]){AUDIO_LOADING[name].push(cb);return;}
+  AUDIO_LOADING[name]=[cb];
+  function finish(buf){var callbacks=AUDIO_LOADING[name]||[];delete AUDIO_LOADING[name];callbacks.forEach(function(f){f(buf);});}
   fetch('audio/'+name+'.ogg').then(function(r){ if(!r.ok) throw 0; return r.arrayBuffer(); })
     .then(function(b){ return AUDIO.ctx.decodeAudioData(b); })
-    .then(function(buf){ AUDIO.files[name]=buf; cb(buf); })
-    .catch(function(){ AUDIO.missing[name]=true; cb(null); });
+    .then(function(buf){
+      AUDIO.files[name]=buf;
+      if(name.indexOf('music-')===0){AUDIO_MUSIC_LRU.push(name);while(AUDIO_MUSIC_LRU.length>3)delete AUDIO.files[AUDIO_MUSIC_LRU.shift()];}
+      finish(buf);
+    })
+    .catch(function(){ finish(null); });
 }
-var SFX_LAST={};
+var SFX_LAST={},SFX_VOICES=[];
 function sfx(name, opts){
   if(!AUDIO.ctx || AUDIO.muted || !name) return;
   var now=performance.now(); if(SFX_LAST[name] && now-SFX_LAST[name]<40) return; SFX_LAST[name]=now;
@@ -49,7 +59,9 @@ function sfx(name, opts){
     var c=AUDIO.ctx, t=c.currentTime+delay;
     if(buf){
       var s=c.createBufferSource(); s.buffer=buf; s.playbackRate.value=opts.rate||(0.94+Math.random()*0.12);
-      var g=c.createGain(); g.gain.value=opts.vol||1; s.connect(g); g.connect(AUDIO.sfxBus); g.connect(AUDIO.verb); s.start(t);
+      while(SFX_VOICES.length>=24){var old=SFX_VOICES.shift();try{old.stop();}catch(e){}}
+      var g=c.createGain(); g.gain.value=opts.vol===undefined?1:opts.vol; s.connect(g); g.connect(AUDIO.sfxBus); g.connect(AUDIO.verb);
+      SFX_VOICES.push(s);s.onended=function(){var i=SFX_VOICES.indexOf(s);if(i>=0)SFX_VOICES.splice(i,1);s.disconnect();g.disconnect();};s.start(t);
     } else synth(name, t, opts);
   });
 }
@@ -157,7 +169,7 @@ function playMusic(kind){
     var c=AUDIO.ctx;
     if(buf){
       var s=c.createBufferSource(); s.buffer=buf; s.loop=true; var g=c.createGain(); g.gain.setValueAtTime(0,c.currentTime); g.gain.linearRampToValueAtTime(1,c.currentTime+2);
-      s.connect(g); g.connect(AUDIO.musicBus); s.start(); AUDIO.music={stop:function(){ g.gain.linearRampToValueAtTime(0,c.currentTime+1); s.stop(c.currentTime+1.1); }};
+      s.connect(g); g.connect(AUDIO.musicBus);s.onended=function(){s.disconnect();g.disconnect();}; s.start(); AUDIO.music={stop:function(){ g.gain.cancelScheduledValues(c.currentTime);g.gain.setTargetAtTime(0,c.currentTime,.25); s.stop(c.currentTime+1.1); }};
     } else AUDIO.music=generativeMusic(kind);
   });
 }
