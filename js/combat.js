@@ -522,7 +522,7 @@ function bossDefeated(e){
   log('<b>Grukk the Warchief falls.</b> The way onward opens.','c-kill');
   log('Your affinity cap rises to <b>'+affinityCap()+'</b>.','c-kill');
   for(var i=0;i<4;i++){ var c=nearFree(e.x,e.y,2)||{x:e.x,y:e.y}; items.push(i===0?{x:c.x,y:c.y,kind:'essence',n:60}:i===1?{x:c.x,y:c.y,kind:'mote',el:pick(ELEMENTS)}:(function(){ var g=randomGear(); g.x=c.x; g.y=c.y; g.it.plus=rollEnhancement(1); g.it.tier=Math.max(2,tierNum(g.it)); tierNormalize(g.it); return g; })()); }
-  explosionFx(e.x,e.y); playMusic('dungeon');
+  explosionFx(e.x,e.y); playSceneMusic();
   ents.forEach(function(o){ if(o.foe && o.guard) applyStatus(o,'fear',6); });
 }
 function levelStatPoints(character,level){return 1+(character.cls==='tourist' && level%2===0?1:0)+(character.race==='human' && level%3===0?1:0);}

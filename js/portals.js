@@ -196,7 +196,7 @@ function leavePlane(){
   restoreFloor(floorNo, RUN.planeFrom);
   floorMeta.portalUsed=true;
   log('You step back into the '+biomeName()+'. Behind you the portal gutters and goes dark.','c-kill');
-  playMusic('dungeon');
+  playSceneMusic();
   if(typeof writeSlot==='function') writeSlot('auto','floor '+floorNo);
 }
 /* the plane's treasure */

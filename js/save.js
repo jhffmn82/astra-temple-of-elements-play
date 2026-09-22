@@ -77,6 +77,7 @@ function saveApply(data){
   else if(data.format==='fote-rescue-1') g=saveDecode(data.globals);   /* one id space across every global, so decode them together */
   else throw new Error('Not a Forge of the Elements save.');
   SAVE_KEYS.forEach(function(k){ if(g[k]!==undefined) window[k]=g[k]; });
+  if(typeof migrateXpCurve==='function')migrateXpCurve();
   if(typeof repairCoreProgress==='function')repairCoreProgress();
   if(typeof repairWallMemorials==='function')repairWallMemorials();
   if(typeof refreshCavernResidents==='function')refreshCavernResidents();
@@ -104,7 +105,7 @@ function saveApply(data){
   closeTitle(); if($('create')) $('create').classList.remove('on');
   if(openSheet) showSheet(openSheet);
   resize(); if(typeof abilityBar==='function') abilityBar(); updateUI(); draw();
-  playMusic(floorMeta && floorMeta.forge ? 'forge' : 'dungeon');
+  playSceneMusic();
 }
 
 /* sigils cut or renamed since a save was made become their nearest current sigil, and new sigils get a look */

@@ -1,11 +1,14 @@
-/* Scene score shares the HUD's encounter predicate. Existing score and effects are preserved. */
+/* Scene score shares the HUD's encounter predicate. Floor changes call
+   playSceneMusic() directly, so a later biome never inherits Dungeon music. */
 var ASTRA_SCORE=['crypt','caverns','underdark','plane-fire','plane-water','plane-air','plane-earth','plane-light','plane-shadow','boss-morty','boss-maw','boss-matron'];
+var BIOME_SCORE=['dungeon','crypt','caverns','underdark'];
 window.AUDIO_FILES=(window.AUDIO_FILES||[]).concat(ASTRA_SCORE.map(function(k){return 'music-'+k;}));
 ['door-close','trap-gas','skeleton-death'].forEach(function(n){if(window.AUDIO_FILES.indexOf(n)<0)window.AUDIO_FILES.push(n);});
 function explorationScore(){
   if(floorMeta && floorMeta.plane)return 'plane-'+floorMeta.plane;
   if(floorMeta && floorMeta.forge)return 'forge';
-  return ['dungeon','crypt','caverns','underdark','underdark'][typeof bidx==='function'?bidx():0]||'dungeon';
+  var biome=typeof floorNo==='number'?Math.floor((floorNo-1)/5):(typeof bidx==='function'?bidx():0);
+  return BIOME_SCORE[Math.max(0,Math.min(BIOME_SCORE.length-1,biome))];
 }
 function sceneScore(){
   var boss=activeBossEncounter();
@@ -13,6 +16,7 @@ function sceneScore(){
   var name=((boss.base&&boss.base.name)||boss.name||boss.kind||'').toLowerCase();
   return /mort/.test(name)?'boss-morty':/maw/.test(name)?'boss-maw':/matron/.test(name)?'boss-matron':'boss';
 }
+function playSceneMusic(){ return playMusic(sceneScore()); }
 (function(){
   var basePlay=playMusic,baseStop=stopMusic;
   function isScene(k){return ['boss','dungeon','forge'].concat(ASTRA_SCORE).includes(k);}
@@ -26,7 +30,7 @@ function sceneScore(){
     var r=baseBars.apply(this,arguments),kind=AUDIO.musicKind||AUDIO.pendingMusic;
     if(isScene(kind)){
       if(player.hp<=0 || (RUN && RUN.over)){stopMusic();AUDIO.pendingMusic=null;}
-      else playMusic(RUN && RUN.victory?'victory':sceneScore());
+      else if(RUN && RUN.victory)playMusic('victory');else playSceneMusic();
     }
     return r;
   };

@@ -61,7 +61,7 @@ descend = function(fell){
     var up=RUN.floorStash[target].floorMeta && RUN.floorStash[target].floorMeta.upAt;
     restoreFloor(target, up);
     log('You climb back down to <b>floor '+floorNo+'</b>. It is as you left it.','c-kill');
-    playMusic(floorMeta.boss ? 'dungeon' : floorMeta.forge ? 'forge' : 'dungeon');
+    playSceneMusic();
     return;
   }
   stashFloor();
@@ -90,7 +90,7 @@ function ascend(){
   restoreFloor(target, down);
   log('You climb back up to <b>floor '+floorNo+'</b>. It is as you left it.','c-kill');
   if(floorMeta.forge) log('The Elemental Forge still burns on this floor.','c-info');
-  playMusic(floorMeta.forge ? 'forge' : 'dungeon');
+  playSceneMusic();
   if(typeof writeSlot==='function' && !RUN.over) writeSlot('auto', 'floor '+floorNo);
 }
 function findTileIn(stash, t){ var m=stash.map; for(var i=0;i<m.length;i++) if(m[i]===t) return {x:i%MW, y:(i/MW)|0}; return null; }

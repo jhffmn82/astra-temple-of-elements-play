@@ -82,6 +82,7 @@ newRun = function(seed, choice){
                      : EMPTY_OFF;
   player.kit=c.kit;
   if(c.cls==='tourist') player.points=(player.points||0)+1;
+  RUN.xpCurveVersion=XP_CURVE_VERSION;
   player.cds={}; player.xpNext=xpToNext(1);
   derive(player);
   player.hp=player.maxhp; player.mp=player.maxmp; player.guard=player.guardMax||0;
@@ -108,11 +109,25 @@ playerShield = function(){ return _playerShieldCls() + Math.max(0, Math.floor(pl
 var _gainPietyCls = gainPiety;
 gainPiety = function(n, why){ return _gainPietyCls(n, why); };
 
-/* Experience curve (level cap 20), refit 2026-09-17 after doubling monster density: XP for the next level =
-   50 x 1.55^(level-1), rounded to 5 (50, 80, 120, 185, 290, 450, 695, 1075 ...). Measured biome 1 full clears on the
-   56x34 floors average about 135/240/400/660/620 XP (floor 5 includes the 330 XP boss), cumulative 135/375/775/1435/2055:
-   level 3 on floor 1, 4 after floor 2, 6 after floor 3, 7 after floor 4 and 8 after the boss. */
-function xpToNext(level){ return Math.round(50*Math.pow(1.55, level-1)/5)*5; }
+/* Experience curve (level cap 20). The former 1.55 growth stranded a full-clear
+   floor-18 character at level 12. Growth 1.267 maps that same lifetime XP to
+   level 18 and puts level 20 near the end of biome four. */
+var XP_CURVE_VERSION=2, XP_GROWTH=1.267;
+function xpToNext(level){ return Math.round(50*Math.pow(XP_GROWTH, level-1)/5)*5; }
+function legacyXpToNext(level){ return Math.round(50*Math.pow(1.55, level-1)/5)*5; }
+function lifetimeXp(p, cost){
+  var total=p.xp||0;for(var level=1;level<(p.level||1);level++)total+=cost(level);return total;
+}
+function migrateXpCurve(){
+  if(!RUN||!player)return false;
+  if((RUN.xpCurveVersion||0)>=XP_CURVE_VERSION){player.xpNext=xpToNext(player.level);return false;}
+  var total=lifetimeXp(player,legacyXpToNext),oldLevel=player.level||1,newLevel=1;
+  while(newLevel<20&&total>=xpToNext(newLevel)){total-=xpToNext(newLevel);newLevel++;}
+  for(var level=oldLevel+1;level<=newLevel;level++)player.points=(player.points||0)+levelStatPoints(player,level);
+  player.level=newLevel;player.xp=newLevel>=20?Math.min(total,xpToNext(20)-1):total;player.xpNext=xpToNext(newLevel);
+  RUN.xpCurveVersion=XP_CURVE_VERSION;
+  return newLevel!==oldLevel;
+}
 
 /* Tourist: +25% experience */
 var _gainXPCls = gainXP;

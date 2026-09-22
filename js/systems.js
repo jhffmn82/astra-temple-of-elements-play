@@ -4,6 +4,7 @@
    ========================================================================== */
 
 var BAG_MAX = 20;   /* 2026-09-17: 16 was too tight once sigils, keys and a ranged weapon compete for it */
+function hungerCost(cost){ return cost/100 * 1.5 * (player.race==='gloomling' ? 0.8 : 1); }
 
 function bossNameForFloor(){
   var live=typeof ents!=='undefined' && ents.filter(function(e){return e.foe&&e.base&&e.base.boss&&e.hp>0;})[0];
@@ -545,7 +546,7 @@ function endTurn(){
   if(typeof WORLD_TICK==='undefined' && player.levitate>0 && !levFresh){ player.levitate--; if(player.levitate===0){ log('Your feet touch the ground again.','c-info'); if(at(player.x,player.y)===CHASM) fallIntoChasm(); } }
   player._levPrev=player.levitate;
   /* hunger */
-  var hungerRate = cost/100 * (player.race==='gloomling' ? 0.8 : 1);
+  var hungerRate = hungerCost(cost);
   var before=player.hunger; player.hunger=Math.max(0, player.hunger-hungerRate);
   if(before>=300 && player.hunger<300) log('<b>You are getting hungry.</b> Eat something soon.','c-you');
   if(player.hunger<=0 && turn%5===0){ player.hp-=1; floatText(player.x,player.y,'1','phys'); if(turn%25===0) log('You are starving!','c-you'); }
@@ -614,11 +615,11 @@ function floorIntro(){
   if(floorMeta.vault) log('Somewhere an iron vault is locked. Its key walks with one of the monsters.','c-info');
   if(floorMeta.boss) log('<b>The Warchief\'s hall.</b> Grukk waits on his throne. Kill him to open the way on.','c-you');
   (floorMeta.notes||[]).forEach(function(n){ log(n,'c-info'); });
-  playMusic(floorMeta.boss ? 'dungeon' : floorMeta.forge ? 'forge' : 'dungeon');
+  playSceneMusic();
 }
 function wanderingSpawn(){
   if(turn < nextSpawn) return;
-  nextSpawn = turn + ri(90,150);
+  nextSpawn = turn + ri(45,75);   /* twice the former wandering encounter rate */
   var alive=ents.filter(function(e){ return e.foe; }).length;
   if(spawnedExtra >= 3 + floorNo || alive >= Math.round((10 + floorNo*2)*0.8)) return;
   var spots=[];

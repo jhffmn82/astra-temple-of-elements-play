@@ -289,7 +289,7 @@ function generateOnce(seed){
   /* ---- start ---- */
   player.x=start.cx; player.y=start.cy; player.t=0;
   if(!walkable(player.x,player.y)){ var sp=nearestWalkable(player.x,player.y); player.x=sp.x; player.y=sp.y; }
-  ents=[player]; spawnedExtra=0; nextSpawn=turn + ri(90,150);
+  ents=[player]; spawnedExtra=0; nextSpawn=turn + ri(45,75);
 
   /* ---- monsters ---- */
   var count = floorMeta.boss ? 9 : 12 + bfloor()*3 + bidx()*2;   /* 2026-09-17: roughly double the old density so a full clear levels you steadily; the boss floor is a shorter approach */
