@@ -4,11 +4,15 @@ var ASTRA_SCORE=['crypt','caverns','underdark','plane-fire','plane-water','plane
 var BIOME_SCORE=['dungeon','crypt','caverns','underdark'];
 window.AUDIO_FILES=(window.AUDIO_FILES||[]).concat(ASTRA_SCORE.map(function(k){return 'music-'+k;}));
 ['door-close','trap-gas','skeleton-death'].forEach(function(n){if(window.AUDIO_FILES.indexOf(n)<0)window.AUDIO_FILES.push(n);});
+function floorScore(n){
+  n=Number(n)||1;
+  return BIOME_SCORE[Math.max(0,Math.min(BIOME_SCORE.length-1,Math.floor((n-1)/5)))];
+}
 function explorationScore(){
   if(floorMeta && floorMeta.plane)return 'plane-'+floorMeta.plane;
-  if(floorMeta && floorMeta.forge)return 'forge';
-  var biome=typeof floorNo==='number'?Math.floor((floorNo-1)/5):(typeof bidx==='function'?bidx():0);
-  return BIOME_SCORE[Math.max(0,Math.min(BIOME_SCORE.length-1,biome))];
+  /* A Forge is an object on a numbered floor, not a separate region.  Its
+     interaction keeps the Forge SFX, while exploration keeps the biome score. */
+  return floorScore(typeof floorNo==='number'?floorNo:1);
 }
 function sceneScore(){
   var boss=activeBossEncounter();
@@ -16,7 +20,16 @@ function sceneScore(){
   var name=((boss.base&&boss.base.name)||boss.name||boss.kind||'').toLowerCase();
   return /mort/.test(name)?'boss-morty':/maw/.test(name)?'boss-maw':/matron/.test(name)?'boss-matron':'boss';
 }
-function playSceneMusic(){ return playMusic(sceneScore()); }
+function playSceneMusic(){
+  var kind=sceneScore();
+  /* Keep the resolved floor and score together.  Load, ascend and descend all
+     call this after changing floorNo, so the audio unlock can only resume the
+     score selected for that floor. */
+  AUDIO.sceneFloor=typeof floorNo==='number'?floorNo:1;
+  AUDIO.sceneScore=kind;
+  if(typeof document!=='undefined' && document.body)document.body.setAttribute('data-scene-music',kind);
+  return playMusic(kind);
+}
 (function(){
   var basePlay=playMusic,baseStop=stopMusic;
   function isScene(k){return ['boss','dungeon','forge'].concat(ASTRA_SCORE).includes(k);}

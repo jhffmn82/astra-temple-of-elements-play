@@ -9,14 +9,14 @@
   var st=document.createElement('style');
   st.textContent=[
     /* bottom strip: log (full height) | bars, chips and hotbar stacked | d-pad and a column of action buttons */
-    '#strip{grid-template-columns:minmax(220px,1fr) auto auto!important;align-items:stretch}',
+    '#strip{grid-template-columns:minmax(220px,1fr) minmax(0,640px) auto!important;align-items:stretch}',
     '#log{height:auto!important;min-height:0;contain:size;align-self:stretch;font-size:12px}',
-    '#mid{width:490px!important;justify-content:flex-start;gap:6px}',   /* the hotbar (8 x 52 + gaps) plus room for a full chip row */
+    '#mid{width:640px!important;justify-content:flex-start;gap:6px}',   /* reserve room for every status chip; the log yields first */
     '#bars{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}',
     '#mid .bar{height:20px}',
     '#mid .bar span{font-size:12.5px;padding:0 7px}',
     /* the chips fit one row under the bars: short meters, favor shown as a number only */
-    '#hud2{flex-wrap:wrap;gap:5px;font-size:12.5px;color:var(--ink);justify-content:flex-start;min-width:0;max-width:100%}',
+    '#hud2{flex-wrap:nowrap;gap:5px;font-size:12.5px;color:var(--ink);justify-content:flex-start;min-width:0;max-width:100%}',
     '#hud2 .chip{padding:2px 7px 2px 4px;gap:4px;white-space:nowrap;flex:0 0 auto;box-sizing:border-box}',
     '#hud2 .hunger{width:52px}',
     '#hud2 .faithchip{gap:5px;min-width:max-content;flex:0 0 auto}',
@@ -40,7 +40,8 @@
     '#extra button{padding:3px 10px;white-space:nowrap;font-size:11px}',
     '#bClose{display:none!important}',   /* closing a door stays on Shift+C and right-click */
     /* narrower windows keep 8 in a row with smaller slots; the chips drop their labels */
-    '@media (max-width:980px){#mid{width:430px!important} #hotbar{grid-template-columns:repeat(8,45px)!important;grid-template-rows:45px!important;gap:4px} #hotbar .slot{width:45px;height:45px} #hotbar .slot .ico{width:38px;height:38px} #hud2{font-size:12px} #hud2 .hunger{width:40px} #hud2 .faithchip .meter{width:30px}}',
+    '@media (max-width:1200px){#strip{grid-template-columns:minmax(220px,1fr) minmax(0,560px) auto!important} #mid{width:560px!important}}',
+    '@media (max-width:980px){#strip{grid-template-columns:minmax(180px,1fr) minmax(0,430px) auto!important} #mid{width:430px!important} #hotbar{grid-template-columns:repeat(8,45px)!important;grid-template-rows:45px!important;gap:4px} #hotbar .slot{width:45px;height:45px} #hotbar .slot .ico{width:38px;height:38px} #hud2{flex-wrap:wrap;font-size:12px} #hud2 .hunger{width:40px} #hud2 .faithchip .meter{width:30px}}',
     '@media (max-width:760px){#mid{width:350px!important} #hotbar{grid-template-columns:repeat(8,37px)!important;grid-template-rows:37px!important} #hotbar .slot{width:37px;height:37px} #hotbar .slot .ico{width:31px;height:31px} #hud2 .faithchip .meter{display:none}}',
     '@media (max-width:640px){#strip{grid-template-columns:1fr auto!important} #log{grid-column:1/-1;contain:none;height:clamp(70px,12vh,110px)!important}}'
   ].join('\n');

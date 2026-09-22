@@ -53,6 +53,12 @@ function drawObj(o, px, py, opt){
   ctx.globalAlpha=(opt.alpha===undefined?1:opt.alpha);
   ctx.imageSmoothingEnabled = s<1;
   if(opt.flip){ ctx.translate(dx+w/2,0); ctx.scale(-1,1); ctx.translate(-(dx+w/2),0); }
+  if(opt.outline){
+    var cut=whiteCut(o.img,o.sx,o.sy,o.sw,o.sh), edge=Math.max(1,Math.round(TS/40));
+    ctx.globalAlpha=(opt.alpha===undefined?1:opt.alpha)*0.22;
+    [[-edge,0],[edge,0],[0,-edge],[0,edge],[-edge,-edge],[edge,-edge],[-edge,edge],[edge,edge]].forEach(function(d){ctx.drawImage(cut,dx+d[0],dy+d[1],w,h);});
+    ctx.globalAlpha=(opt.alpha===undefined?1:opt.alpha);
+  }
   ctx.drawImage(o.img, o.sx,o.sy,o.sw,o.sh, dx,dy,w,h);
   if(opt.flash>0){ ctx.globalAlpha*=opt.flash; ctx.drawImage(whiteCut(o.img,o.sx,o.sy,o.sw,o.sh), dx,dy,w,h); }
   ctx.restore();
@@ -450,13 +456,19 @@ function drawCharacter(e, px, py, opts){
     var rect2=placementRect(dx2,dy2,w2,h2);dx2=rect2.x;dy2=rect2.y;w2=rect2.w;h2=rect2.h;
     ctx.save(); ctx.globalAlpha=opts.alpha===undefined?1:opts.alpha; ctx.imageSmoothingEnabled=true;
     if(opts.flip){ ctx.translate(px+TS/2,0); ctx.scale(-1,1); ctx.translate(-(px+TS/2),0); }
+    if(opts.outline){
+      var cut2=whiteCut(ms.img,f2.sx,f2.sy,c2,c2),edge2=Math.max(1,Math.round(TS/40));
+      ctx.globalAlpha=0.22;
+      [[-edge2,0],[edge2,0],[0,-edge2],[0,edge2],[-edge2,-edge2],[edge2,-edge2],[-edge2,edge2],[edge2,edge2]].forEach(function(d){ctx.drawImage(cut2,dx2+d[0],dy2+d[1],w2,h2);});
+      ctx.globalAlpha=1;
+    }
     ctx.drawImage(ms.img, f2.sx, f2.sy, c2, c2, dx2, dy2, w2, h2);
     if(opts.flash>0){ ctx.globalAlpha*=opts.flash; ctx.drawImage(whiteCut(ms.img,f2.sx,f2.sy,c2,c2), dx2,dy2,w2,h2); }
     ctx.restore();
     return true;
   }
   var o = spriteOn ? objArt('monsters', 'mob-'+({rat:'rat',bat:'bat',goblin:'goblin',archer:'goblin-archer',brute:'goblin-brute',slime:'slime',shaman:'goblin-shaman'}[e.kind]||'x')) : null;
-  if(o) return drawObj(o, px, py, {feet:true, fit:(e.base.art||0.9), flip:opts.flip, flash:opts.flash, sy:opts.breath});
+  if(o) return drawObj(o, px, py, {feet:true, fit:(e.base.art||0.9), flip:opts.flip, flash:opts.flash, sy:opts.breath, outline:opts.outline});
   return false;
 }
 
@@ -965,7 +977,7 @@ function draw(){
       ctx.globalAlpha=0.35; ctx.fillStyle='#000'; ctx.beginPath(); ctx.ellipse(px0+TS/2,py0+TS*0.9,TS*0.26*(e.base.art||0.9),TS*0.09,0,0,7); ctx.fill(); ctx.globalAlpha=1;
       var flip = e.ally && typeof e.facingLeft==='boolean' ? e.facingLeft : player.x < e.x;
       if(e.base && e.base.artLeft) flip = !flip;   /* art painted facing left (goblin) */
-      if(!drawCharacter(e, px, py, {flip:flip, flash:flashOf(e), breath:breathOf(e)})){
+      if(!drawCharacter(e, px, py, {flip:flip, flash:flashOf(e), breath:breathOf(e), outline:e.foe && !!vis[idxOf(e.x,e.y)]})){
         var bb=breathOf(e)*TS*0.6;
         ctx.fillStyle=e.col; roundRect(px+TS*0.14,py+TS*0.1-bb,TS*0.72,TS*0.72+bb,TS*0.16); ctx.fill(); glyph(e.ch,px,py,'#120F0D');
       }

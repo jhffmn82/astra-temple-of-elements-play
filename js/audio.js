@@ -22,7 +22,7 @@ function audioInit(){
   for(var ch=0;ch<2;ch++){ var d=ir.getChannelData(ch); for(var i=0;i<len;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/len,3.2); }
   AUDIO.verb=c.createConvolver(); AUDIO.verb.buffer=ir;
   var vg=c.createGain(); vg.gain.value=0.08; AUDIO.verb.connect(vg); vg.connect(AUDIO.sfxBus);
-  if(AUDIO.pendingMusic) playMusic(AUDIO.pendingMusic);
+  if(AUDIO.pendingMusic){ var requested=AUDIO.pendingMusic; AUDIO.pendingMusic=null; playMusic(requested); }
 }
 ['pointerdown','keydown'].forEach(function(ev){ window.addEventListener(ev, audioInit, {passive:true}); });
 function audioSave(){ try{ localStorage.setItem('astra-temple-audio', JSON.stringify({muted:AUDIO.muted, musicOn:AUDIO.musicOn, vol:AUDIO.vol})); }catch(e){} }
@@ -179,7 +179,11 @@ function synth(name, t, opts){
 
 /* ---- music: file first, generative score otherwise ---- */
 function playMusic(kind){
+  /* pendingMusic is the request waiting for the first user gesture, not a
+     historical track.  Leaving the old request here allowed a load or a
+     downstairs transition to fall back to the earlier biome later. */
   if(!AUDIO.ctx){ AUDIO.pendingMusic=kind; return; }
+  AUDIO.pendingMusic=null;
   if(AUDIO.musicKind===kind) return;
   stopMusic(); AUDIO.musicKind=kind;var request=++AUDIO_MUSIC_REQUEST;
   loadFile('music-'+kind, function(buf){
