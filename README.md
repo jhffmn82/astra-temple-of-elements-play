@@ -9,4 +9,4 @@ Phones and tablets use the same link with touch controls.
 This repository contains generated browser output only. Recovery notes and source are maintained in
 the private `astra-temple-of-elements` repository. This preview is not a claim of completed full-run balance testing.
 
-Build: **2026-09-22 04:00:31**.
+Build: **2026-09-22 04:33:48**.

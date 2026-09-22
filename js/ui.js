@@ -539,7 +539,7 @@ var TILE_NAMES = {0:'Wall',1:'Floor',2:'Closed door',3:'Stairs down',4:'Chest',5
   19:'Stairs up',20:'Portal'};
 var TILE_HINTS = {5:'Bump it to fuse motes, enchant gear or craft sigils.',9:'Needs this floor\'s iron key.',10:'Bump it to learn about the god.',11:'Fire melts it. Blows crack it slowly.',
   12:'Fire clears it; pushing through hurts.',14:'Costs half your current HP to pass. Real treasure behind.',16:'Slows you. Puts out fire. Lightning hurts more here.',
-  8:'A sheer drop. Float across or find a bridge.',18:'Opened by a mechanism nearby.',3:'Step on it to descend.',13:'Opens when the Warchief falls.',
+  8:'A sheer drop. Float across or find a bridge.',18:'Opened by a mechanism nearby.',3:'Step on it to descend.',13:'Opens when the floor boss falls.',
   19:'Step on it to climb back to the floor above.',20:'Step in to cross into the plane beyond. Its guardian holds a treasure grotto.'};
 function inspectHTML(mx,my){
   if(!inb(mx,my) || !(revealAll||seen[idxOf(mx,my)])) return '';
@@ -584,8 +584,9 @@ function inspectHTML(mx,my){
   var label=TILE_NAMES[t]||'Floor';
   if(t===SHRINE) label='Shrine to '+GODS[RUN.shrineGod].name;
   if(typeof PORTAL!=='undefined' && t===PORTAL && floorMeta.portal && typeof PLANE_TITLE!=='undefined') label='Portal to '+PLANE_TITLE[floorMeta.portal];
+  var tileHint=t===EXIT ? 'Opens when '+bossNameForFloor()+' falls.' : TILE_HINTS[t];
   return '<div class="nm">'+label+'</div>'+
-    (TILE_HINTS[t]?'<div class="hint">'+TILE_HINTS[t]+'</div>':'')+
+    (tileHint?'<div class="hint">'+tileHint+'</div>':'')+
     '<div class="row"><span>'+(vis[idxOf(mx,my)]?'In sight':'From memory')+'</span><b>'+mx+','+my+'</b></div>';
 }
 

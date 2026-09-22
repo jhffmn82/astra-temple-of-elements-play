@@ -19,7 +19,7 @@ function inCaverns(){ return typeof bidx==='function' && bidx()===2 && !(floorMe
   /* band = absolute floors. Stats are fixed; later biomes use distinct stronger creatures. */
   M.stormbeetle   = {name:'Storm Beetle', sprite:'m-storm-beetle', col:'#3A4A7A', ch:'b', hp:100, dmg:[9,13], acc:64, eva:8, armor:5, speed:100, range:1, xp:40,
                      band:[11,15], w:22, arcs:true, grounded:true, living:true, art:0.95, artLeft:true, sfx:'slime'};
-  M.sparkjelly    = {name:'Spark Jelly', sprite:'m-spark-jelly', col:'#8FD8FF', ch:'j', hp:24, dmg:[4,6], acc:66, eva:28, armor:0, speed:100, range:1, xp:36,
+  M.sparkjelly    = {name:'Spark Jelly', sprite:'m-spark-jelly', col:'#8FD8FF', ch:'j', hp:48, dmg:[4,6], acc:66, eva:28, armor:0, speed:100, range:1, xp:36,
                      band:[12,15], w:12, flying:true, erratic:true, stingChain:true, el:'air', glow:'#7FD0FF', living:true, art:0.85, sfx:'bat'};
   M.shockeel      = {name:'Shock Eel', sprite:'m-shock-eel', col:'#3F7A6A', ch:'e', hp:55, dmg:[6,9], acc:66, eva:18, armor:1, speed:100, range:1, xp:40,
                      band:[11,14], w:0, aquatic:true, el:'water', living:true, art:0.95, artLeft:true, sfx:'slime'};   /* w:0 - placed in water by eelPlacement() */
@@ -29,12 +29,13 @@ function inCaverns(){ return typeof bidx==='function' && bidx()===2 && !(floorMe
                      band:[0,0], w:0, sporeproof:true, living:true, art:0.5, sfx:'slime'};
   M.crystalcrawler= {name:'Crystal Crawler', sprite:'m-crystal-crawler', col:'#8A6AD0', ch:'c', hp:50, dmg:[6,9], acc:68, eva:20, armor:3, speed:130, range:1, xp:38,
                      band:[13,15], w:9, shatters:true, el:'earth', art:0.95, artLeft:true, sfx:'rat'};   /* the Caverns' one fast creature */
-  /* the Dungeon's bat and slime, in their Caverns bands (their own entries stay on floors 1-5) */
+  /* Biome-three versions of the Dungeon vermin; the originals stay on floors 1-5. */
+  M.caverat       = Object.assign({}, M.rat, {name:'Cave Rat',hp:38,dmg:[6,9],acc:66,eva:24,speed:135,xp:30,art:.85,band:[11,13],w:8});
   M.cavebat       = Object.assign({}, M.bat, {name:'Grotto Bat',hp:30,dmg:[4,6],acc:66,eva:28,speed:130,xp:28,art:.85,band:[11,12], w:8});
   M.caveslime     = Object.assign({}, M.slime, {name:'Basalt Slime',hp:64,dmg:[7,10],acc:62,armor:5,xp:38,art:1,band:[11,15], w:10});
-  delete M.cavebat.biome; delete M.caveslime.biome;   /* absolute floor bands like the rest of this table (the Dungeon originals are tagged biome 1) */
+  delete M.caverat.biome; delete M.cavebat.biome; delete M.caveslime.biome;
   /* The Deep Maw: tuned by hand for floor 15, so no floor curve (fixed, like the plane elites) */
-  M.deepmaw       = {name:'The Deep Maw', sprite:'m-deep-maw', col:'#B07A4A', ch:'W', hp:240, dmg:[12,17], acc:70, eva:0, armor:4, speed:100, range:1, xp:600,
+  M.deepmaw       = {name:'The Deep Maw', sprite:'m-deep-maw', col:'#B07A4A', ch:'W', hp:480, dmg:[12,17], acc:70, eva:0, armor:4, speed:100, range:1, xp:600,
                      band:[15,15], w:0, boss:true, elite:true, big:2, fixed:true, living:true, art:2.0, bigScale:1.5, artLeft:true, sfx:'brute'};
   M.mawlimb       = {name:'The Deep Maw', sprite:'m-deep-maw', col:'#B07A4A', ch:'W', hp:9999, dmg:[0,0], acc:0, eva:0, armor:4, speed:100, range:0, xp:0,
                      band:[0,0], w:0, object:true, fixed:true, art:0.1};
@@ -44,6 +45,7 @@ function inCaverns(){ return typeof bidx==='function' && bidx()===2 && !(floorMe
   DROPS.myconid       = {chance:0.30, table:{essence:8, food:3, sigil:3}};
   DROPS.shroomling    = {chance:0, table:{essence:1}};
   DROPS.crystalcrawler= {chance:0.25, table:{essence:14, gear:3}};
+  DROPS.caverat       = DROPS.rat;
   DROPS.cavebat       = DROPS.bat;
   DROPS.caveslime     = DROPS.slime;
   DROPS.deepmaw       = {chance:0, table:{essence:1}};
@@ -59,7 +61,7 @@ CAVE_ELEMENT_TIERS.forEach(function(r){
 });
 
 /* special rooms and fallbacks ask for Dungeon kinds by name; in the Caverns they get Caverns ones */
-var CAVE_SWAP = {bat:'cavebat', slime:'caveslime', goblin:'stormbeetle', archer:'sparkjelly', brute:'stormbeetle', shaman:'myconid'};
+var CAVE_SWAP = {rat:'caverat', bat:'cavebat', slime:'caveslime', goblin:'stormbeetle', archer:'sparkjelly', brute:'stormbeetle', shaman:'myconid'};
 CAVE_ELEMENT_TIERS.forEach(function(r){CAVE_SWAP[r.old]=r.kind;});
 var _spawnCaveMobs = spawn;
 spawn = function(kind, x, y){ if(CAVE_SWAP[kind] && inCaverns()) kind=CAVE_SWAP[kind]; return _spawnCaveMobs(kind, x, y); };
@@ -71,11 +73,11 @@ function refreshCavernResidents(){
     if(!e.foe||e.hp<=0||!e.base)return;
     var tier=CAVE_ELEMENT_TIERS.filter(function(r){return r.old===e.kind;})[0];
     if(tier){var oldRatio=e.hp/Math.max(1,e.maxhp), newer=MONSTERS[tier.kind];e.kind=tier.kind;e.name=newer.name;e.base=newer;e.maxhp=sHP(newer.hp);e.hp=Math.max(1,Math.ceil(e.maxhp*oldRatio));e.dmg=newer.dmg.map(sDMG);return;}
-    var kind=e.kind==='slime'?'caveslime':e.kind==='bat'?'cavebat':e.kind;
-    if(kind!=='caveslime'&&kind!=='cavebat')return;
+    var kind=e.kind==='rat'?'caverat':e.kind==='slime'?'caveslime':e.kind==='bat'?'cavebat':e.kind;
+    if(kind!=='caverat'&&kind!=='caveslime'&&kind!=='cavebat'&&kind!=='sparkjelly'&&kind!=='deepmaw')return;
     var b=MONSTERS[kind];if(e.base.hp===b.hp&&e.kind===kind)return;
     var ratio=e.hp/Math.max(1,e.maxhp);e.kind=kind;e.base=b;e.dmg=b.dmg.slice();
-    if(!e.small){e.maxhp=b.hp;e.hp=Math.max(1,Math.ceil(e.maxhp*ratio));e.name=b.name;}
+    if(!e.small){e.maxhp=sHP(b.hp);e.hp=Math.max(1,Math.ceil(e.maxhp*ratio));e.name=b.name;}
   });
 }
 
@@ -179,8 +181,9 @@ aiAct = function(e){
 function stormBeetleAct(e){
   if(e.st.root){ e.stormCharge=null; return false; }
   if(e.stormCharge){
+    if(turn<=e.stormChargeAt){ e.t+=actCost(e); return true; }
     if(!tickStatus(e)) return true;
-    var path=e.stormCharge; e.stormCharge=null; e.stormReady=turn+5;
+    var path=e.stormCharge; e.stormCharge=null; e.stormChargeAt=0; e.stormReady=turn+5;
     floorMeta.marks=(floorMeta.marks||[]).filter(function(m){return m.kind!=='storm'+e.id;});
     setClip(e,'attack'); sfx('lightning-cast');
     for(var k=0;k<path.length;k++){
@@ -203,6 +206,7 @@ function stormBeetleAct(e){
   if(!last || last.x!==player.x || last.y!==player.y) return false;
   if(!tickStatus(e)) return true;
   e.stormCharge=lane.filter(function(p){return p.x!==e.x||p.y!==e.y;}).slice(0,5);
+  e.stormChargeAt=turn;
   floorMeta.marks=(floorMeta.marks||[]).concat([{cells:e.stormCharge.map(function(p){return idxOf(p.x,p.y);}),col:'#7FD8FF',until:turn+2,kind:'storm'+e.id}]);
   setClip(e,'attack'); sfx('lightning-cast');
   log('The <b>Storm Beetle</b> crackles and lowers its shell. Move out of its charge lane!','c-you');
@@ -227,7 +231,7 @@ endTurn=function(){
   floorMeta.shockClouds=(floorMeta.shockClouds||[]).filter(function(c){return turn<c.until;});
   [player].concat(ents.filter(function(e){return e.ally&&e.hp>0;})).forEach(function(e){
     if(!floorMeta.shockClouds.some(function(c){return c.cells.indexOf(idxOf(e.x,e.y))>=0;}))return;
-    caveZap(e,sDMG(roll(3,5)),null,e===player?'The shock cloud arcs through you':null);
+    caveZap(e,sDMG(roll(6,10)),null,e===player?'The shock cloud arcs through you':null);
     if(e.hp>0 && !e.st.stun && rng()<.25)applyStatus(e,'stun',1);
   });
 };

@@ -5,6 +5,16 @@
 
 var BAG_MAX = 20;   /* 2026-09-17: 16 was too tight once sigils, keys and a ranged weapon compete for it */
 
+function bossNameForFloor(){
+  var live=typeof ents!=='undefined' && ents.filter(function(e){return e.foe&&e.base&&e.base.boss&&e.hp>0;})[0];
+  if(live)return live.name||(live.base&&live.base.name)||'this floor\'s guardian';
+  if(floorNo<=5)return 'Grukk the Warchief';
+  if(floorNo<=10)return 'Morty the Mostly-Dead';
+  if(floorNo<=15)return 'the Deep Maw';
+  if(floorNo<=20)return 'the Matron of the Web';
+  return 'this floor\'s guardian';
+}
+
 /* ---------------------------------------------------------------- movement */
 function tryMove(dx,dy){
   if(player.hp<=0 || RUN.victory) return;
@@ -35,7 +45,7 @@ function tryMove(dx,dy){
   if(t===SECRET){ return bumpSecret(nx,ny); }
   if(t===FORGE){ if(typeof openForge==='function') openForge(); return; }
   if(t===SHRINE){ if(typeof openShrine==='function') openShrine(); return; }
-  if(t===EXIT && !floorMeta.exitOpen){ log('The gate is sealed. Grukk the Warchief holds its key in his will.','c-info'); sfx('door-locked'); return; }
+  if(t===EXIT && !floorMeta.exitOpen){ log('The gate is sealed. It opens when '+bossNameForFloor()+' falls.','c-info'); sfx('door-locked'); return; }
   if(t===CHASM){
     if(player.levitate>0){ player.x=nx; player.y=ny; player.movedThisTurn=true; stepOn(); endTurn(); return; }
     log('A sheer drop into darkness. You would need to float to cross.','c-info'); return;
@@ -44,7 +54,7 @@ function tryMove(dx,dy){
   if(!walkable(nx,ny)) return;
   player.x=nx; player.y=ny; player.movedThisTurn=true;
   if(gAt(nx,ny)===G_GRASS){ setG(nx,ny,G_SHORT); sfx('step-grass'); }
-  else if(t===WATER) sfx('step-water'); else sfx('step-stone');
+  else if(t===WATER) sfx('step-water',{vol:0.35}); else sfx('step-stone',{vol:0.35});
   stepOn(); endTurn();
 }
 /* close an open door next to you: Shift+C closes every empty adjacent door, right-click closes one */

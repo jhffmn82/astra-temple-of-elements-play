@@ -36,6 +36,7 @@ function restoreFloor(n, at){
   delete RUN.floorStash[n];
   if(floorMeta && floorMeta.shrineGod) RUN.shrineGod=floorMeta.shrineGod;
   floorNo = n;
+  if(typeof repairCoreProgress==='function')repairCoreProgress();
   if(typeof refreshCavernResidents==='function')refreshCavernResidents();
   if(typeof refreshEncounterTuning==='function')refreshEncounterTuning();
   if(typeof SURF_CACHE!=='undefined') SURF_CACHE.key=null;

@@ -77,6 +77,7 @@ function saveApply(data){
   else if(data.format==='fote-rescue-1') g=saveDecode(data.globals);   /* one id space across every global, so decode them together */
   else throw new Error('Not a Forge of the Elements save.');
   SAVE_KEYS.forEach(function(k){ if(g[k]!==undefined) window[k]=g[k]; });
+  if(typeof repairCoreProgress==='function')repairCoreProgress();
   if(typeof repairWallMemorials==='function')repairWallMemorials();
   if(typeof refreshCavernResidents==='function')refreshCavernResidents();
   if(typeof refreshEncounterTuning==='function')refreshEncounterTuning();
