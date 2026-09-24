@@ -17,9 +17,9 @@ function isScoundrel(){ return player.cls==='scoundrel'; }
 PASSIVES={
   mig:[{at:12,id:'heavyHands',name:'Heavy Hands',d:'+10% melee damage'},
        {at:15,id:'crushing',  name:'Crushing Blows',d:'+25% damage to targets below half HP'},
-       {at:18,id:'armorMaster',name:'Armor Master',d:'heavy armor evasion penalty halved'},
+       {at:18,id:'spellWard', name:'Spell Ward',d:'block spells and abilities in addition to melee and ranged attacks. Without a shield (two-handers, dual wield) you block spells and abilities at 25% + 1% per Might above 10, up to 40%'},
        {at:21,id:'cleaving',  name:'Cleaving Swings',d:'your attacks also hit one other adjacent enemy for half'},
-       {at:25,id:'unstoppable',name:'Unstoppable',d:'immune to stun, +20% melee damage'}],
+       {at:25,id:'unstoppable',name:'Unstoppable',d:'immune to stun, slow and knockback, +20% melee damage'}],
   agi:[{at:12,id:'lightFeet',name:'Light Feet',d:'+8 evasion'},
        {at:15,id:'deadeye',  name:'Deadeye',d:'+8% crit chance'},
        {at:18,id:'fleet',    name:'Fleet',d:'moving costs 15% less time'},
@@ -37,7 +37,9 @@ PASSIVES={
        {at:25,id:'archmage',  name:'Archmage',d:'+10% spell damage, +5 percentage points spell crit, +20% max mana'}]
 };
 var AOE_HIT=false;   /* set while resolving area attacks, so Magic Barrier ignores them */
+var ATTACK_ROLLED=false;   /* set while attack() applies a hit it has already rolled block for, so Spell Ward does not roll twice */
 function godRank(){ return player.god ? pietyRank(player.piety||0) : 0; }
+function adjacentFoes(){ var n=0; ents.forEach(function(e){ if(e.foe && e.hp>0 && dist(e,player)<=1) n++; }); return n; }
 function hasGod(id){ return player.god===id; }
 function totalAffinity(){ var t=0; for(var k in player.aff) t+=player.aff[k]||0; return t; }
 function affinityCap(){
@@ -90,14 +92,14 @@ function derive(p){
   var pool = Math.ceil(s.foc * (1 + p.level/5));
   if(p.cls==='mage') pool = Math.ceil(pool*1.3);
   if(hasP('archmage')) pool = Math.ceil(pool*1.2);
-  if(p.off && p.off.manaPct) pool = Math.ceil(pool*(1+p.off.manaPct));
+  if(p.off && p.off.manaPct && !p.twoHanded) pool = Math.ceil(pool*(1+p.off.manaPct));   /* 2026-09-22 audit: a tome needs a free hand like every other off-hand */
   if(p.god==='vellum') pool = Math.ceil(pool*(1+0.05*pietyRank(p.piety||0)));
   p.maxmp = sHP(pool);
   var rank=godRank();
   p.acc = 60 + 2*s.agi + (p.weapon.acc||0) + (hasGod('reginald')?4*rank:0) + (p.weapon.enchant==='light'?Math.round(10*enchantScale('light')):0);
   var arm=typeof bodyArmor==='function'?bodyArmor(p):(p.armorItem||{});
   var evaPen = arm.eva||0;
-  if(evaPen<0 && (hasP('armorMaster') || p.race==='dwarf')) evaPen = p.race==='dwarf' ? 0 : Math.round(evaPen/2);
+  if(evaPen<0 && p.race==='dwarf') evaPen = 0;   /* Armor Master (Might 18) became Spell Ward on 2026-09-22 */
   p.eva = 10 + 2*s.agi + evaPen + ((p.off&&p.off.eva)||0) + (hasP('lightFeet')?8:0) + (arm.enchant==='water'?Math.round(8*enchantScale('water')):0);
   p.armor = (arm.armor||0) + (arm.armor>0 ? itemPlus(arm) : 0) + (arm.enchant==='earth'?Math.round(2*enchantScale('earth')):0)
           + (hasGod('grom')?rank:0) + (buff('ironbody')?4:0) + (buff('ironhide')?5:0);
@@ -114,7 +116,7 @@ function derive(p){
   p.dmg = [sDMG(p.weapon.dmg[0])+plus, sDMG(p.weapon.dmg[1])+plus];
   p.element = p.primary || Object.keys(p.aff)[0] || null;
   p.affLevel = p.element ? p.aff[p.element] : 0;
-  p.iceArmorMax = (p.aff.water||0)*3;
+  p.iceArmorMax = (p.aff.water||0)*3 + (typeof combo==='function' && combo('earth','water') ? 3*(p.aff.earth||0) : 0);   /* Silt Shield's extra is part of the cap, so it is never clipped (2026-09-22 audit) */
   if(p.iceArmor===undefined) p.iceArmor=p.iceArmorMax;
   p.iceArmor=Math.min(p.iceArmor, p.iceArmorMax);
 }
@@ -181,6 +183,17 @@ function resistMult(target, type){
 function isWet(e){ return at(e.x,e.y)===WATER || (e.st && e.st.wet); }
 function applyDamage(target, amount, type, source){
   var d=amount;
+  /* Spell Ward (Might 18, Justin 2026-09-22): the shield also rolls against spells and abilities, everything a
+     foe does to you outside the attack roll. Ticks, traps, clouds and sigils have no attacker and stay as they are. */
+  /* 2026-09-23 (Justin): without a shield (a two-hander, two weapons, a free or focus off-hand) there is no block, so
+     Spell Ward gives a guard of its own for this roll: 25% plus 1% per Might above 10, up to 40% (33% at Might 18);
+     a shield keeps its block chance. */
+  var wardChance = player.block>0 ? player.block : Math.min(0.40, 0.25+0.01*Math.max(0,(player.stats&&player.stats.mig||10)-10));
+  if(target===player && !ATTACK_ROLLED && !AOE_HIT && source && source!==player && source.foe && hasP('spellWard') && wardChance>0 && combatRoll(wardChance,true)){
+    d*=0.25; if(typeof onShieldBlock==='function') onShieldBlock(source, player, amount);   /* the shield's proc reads the whole blow, as a weapon block does */
+    log('Your shield turns the '+(type==='phys'?'blow':type)+' from '+(source.name||'the attack')+'.','c-good');
+    if(typeof floatText==='function') floatText(player.x,player.y,'block','miss'); if(typeof sfx==='function') sfx('block');
+  }
   /* Magic Barrier (Focus 21): -5 from single-target ranged attacks, applied with the other flat reductions */
   var barrier = (target===player && hasP('magicBarrier') && !AOE_HIT && source && source!=='player' && source.foe && dist(source,player)>1) ? 5 : 0;
   if(type==='phys'){
@@ -188,23 +201,35 @@ function applyDamage(target, amount, type, source){
     if(source===player && player.weapon.pierce) arm -= player.weapon.pierce;
     if(source && source.base && source.base.pierce) arm -= source.base.pierce;
     arm = Math.max(0, arm);
-    var flat = Math.ceil(arm/2);
-    if(target===player && player.aff.earth) flat += player.aff.earth;
+    /* 2026-09-23 (Justin): a heavy blow (Drider, Deep Maw, Matron) is not turned by the flat of the armour, only its percentage and a block */
+    var heavy = !!(source && source.base && source.base.heavy);
+    var flat = heavy ? 0 : Math.ceil(arm/2);
+    if(target===player && player.aff.earth && !heavy) flat += player.aff.earth;
     if(target===player && player.st.stone) flat += 3;
     d = Math.max(0, d - flat) * (1 - Math.min(0.5, 0.02*arm));
+    if(amount>0 && d<1) d=1;   /* 2026-09-23 (design-log audit): a hit deals at least 1; armour cannot swallow it whole (DESIGN 12, step 1) */
     if(target.st && target.st.frozen){ d *= 2;   /* Freeze vulnerability; the former Shatter bonus is superseded. */
       delete target.st.frozen; if(target!==player) target.st.imm_frozen={t:3}; floatText(target.x,target.y,'shatter','ice'); }
   } else {
     var rm = resistMult(target, type);
     if(target===player && rm<1) rm = Math.max(0.25, rm);    /* total resistance capped at 75% */
     d = Math.max(0, d) * rm;
+    if(type==='dark' && target.st && target.st.corrupt) d *= 1.25;   /* 2026-09-22 audit: Corrupt "takes extra dark damage" had no reader */
     if(d>0 && target.st && target.st.frozen){ delete target.st.frozen; if(target!==player) target.st.imm_frozen={t:3}; }
   }
   if(target===player){
     if(buff('laststand')) d*=0.5;
-    if(hasGod('reginald') && godRank()>=3 && source && source.challenged && (source.elite || source.base && (source.base.elite||source.base.boss))) d*=1-.05*godRank();
+    /* 2026-09-23 (Justin): Coward's Mark (rank 3). A marked foe deals 15/20/25% less to you; the Challenge invoke marks one
+       by hand, and any foe that strikes you from more than a tile away marks itself below. Wall of One (rank 5): each foe
+       adjacent to you beyond the first is 10% less damage taken, up to three. */
+    if(hasGod('reginald') && godRank()>=3 && source && source.foe && source.challenged) d*=1-.05*godRank();
+    if(hasGod('reginald') && godRank()>=5 && source && source.foe) d*=1-0.10*Math.min(3, Math.max(0, adjacentFoes()-1));
+    if(hasGod('reginald') && godRank()>=3 && source && source.foe && source.hp>0 && !source.challenged && typeof dist==='function' && dist(source,player)>1){
+      source.challenged=true; source.challengeT=5; source.state='hunt'; source.cowardMark=true;
+      log('<b>'+(source.name||'It')+'</b> strikes from afar. Sir Reginald marks the coward: it must face you.','c-good');
+    }
     if(capstone('grumbok') && type!=='phys' && source && source.foe)d*=.5;
-    d=Math.max(0,d-barrier);
+    d = d>0 && barrier>0 ? Math.max(1, d-barrier) : Math.max(0, d);   /* Magic Barrier leaves at least 1 too (DESIGN 12, step 3d) */
     if(d>0 && source && source.foe && hasP('fortitude') && !(player.fortUntil>player.t)){d*=.5;player.fortUntil=player.t+1500;log('Fortitude blunts the blow.','c-good');}
     if(player.ward>0 && d>0){ if(!(player.buffs.arcaneward>0)) player.ward=0; else { var wa=Math.min(player.ward, d); player.ward-=wa; d-=wa; if(wa>0) floatText(player.x,player.y,'-'+Math.round(wa),'magic'); if(player.ward<=0) log('Your Arcane Ward shatters.','c-info'); } }
     if(player.iceArmor>0 && d>0){ var ab=Math.min(player.iceArmor, d); player.iceArmor-=ab; d-=ab; if(ab>0) floatText(player.x,player.y,'-'+Math.round(ab),'ice'); }
@@ -275,6 +300,7 @@ function attack(att, def, mult, label){
   /* 2026-09-20: Justin - "surprise attacks shouldn't miss". Striking something that has not noticed you always
      lands: the same rule frozen and stunned targets already had. */
   if(att===player && def!==player && (typeof offGuard==='function' && offGuard(def) || player.hidden>0 || def.surprised)) ch = 1;
+  if(att===player && player._sureHit) ch = 1;   /* 2026-09-22: the Fighter's Charge cannot miss */
   var who = att===player ? 'You' : att.name;
   var foe = def===player ? 'you' : def.name;
   var tAt = fxClock;
@@ -310,6 +336,7 @@ function attack(att, def, mult, label){
     if(melee && buff('rampage')) statPool += 0.40;
     if(hasP('crushing') && def.hp < def.maxhp/2) statPool += 0.25;
     if(def.challenged && hasGod('reginald')) statPool += 0.25;
+    if(hasGod('reginald') && godRank()>=5) statPool += 0.10*Math.min(3, Math.max(0, adjacentFoes()-1));   /* Wall of One */
     if(buff('rally')) statPool += 0.10;
     if(melee && capstone('grumbok') && player.spellbreakUntil>player.t){base*=1.5;player.spellbreakUntil=0;log('<b>Spellbreaker!</b>','c-good');}
     if(hasGod('glimmer') && (def.base.undead||def.base.shadowy)) statPool += 0.10*godRank();
@@ -324,7 +351,8 @@ function attack(att, def, mult, label){
     var critCh = player.crit + (unaware && player.aff.shadow ? 0.05*player.aff.shadow : 0);
     crit = combatRoll(critCh,true);
     if(unaware){ surprise=true; base *= isScoundrel() ? 2.0 : 1.5; if(player.weapon.name.indexOf('Dagger')>=0) base*=1.2;
-      if(hasGod('reginald')) pietyViolation('a surprise attack', 12); }
+      /* 2026-09-22 (Justin): no piety for surprise attacks at all - his followers simply cannot sneak (stealthScore), and
+         his only foul is Shadow (gods.js, forge.js). */ }
   } else {
     crit = !(def===player && hasP('bulwark')) && rng() < 0.05;
   }
@@ -337,7 +365,7 @@ function attack(att, def, mult, label){
      mastery smite, and the light-air combo). Mixing them meant a smite proc was subtracted twice on any
      weapon that was not light-enchanted, while a light-enchanted weapon skipped the subtraction entirely
      and silently dropped the fire-affinity bonus and the enchant's own +25% against undead. */
-  var phys=applyDamage(def, base, att.swarm?'dark':'phys', att), extra=0, applied=0, note='', el=null;
+  ATTACK_ROLLED=true; var phys=applyDamage(def, base, att.swarm?'dark':'phys', att), extra=0, applied=0, note='', el=null; ATTACK_ROLLED=false;
   sfx(hitSfx(att,def,crit,blocked), {at:def._hit});
   if(att===player){
     var ench = player.weapon.enchant;
@@ -366,7 +394,7 @@ function attack(att, def, mult, label){
     }
     if(player.aff.fire){ el = el || 'fire'; extra += player.aff.fire; }
     if(player.aff.light && rng() < 0.10*player.aff.light + (typeof smiteBonus==='function' ? smiteBonus() : 0)){
-      var sm=applyDamage(def, smiteDamage(), 'light', player); applied+=sm; el = el || 'light';
+      ATTACK_ROLLED=true; var sm=applyDamage(def, smiteDamage(), 'light', player); ATTACK_ROLLED=false; applied+=sm; el = el || 'light';
       /* the light-air combo fires a second smite, so count it before the log line is written: what the
          note reports is the whole smite, not just the first half of it (2026-09-18) */
       if(typeof onSmiteProc==='function'){ var sm2=onSmiteProc(def)||0; applied+=sm2; sm+=sm2; }
@@ -381,11 +409,11 @@ function attack(att, def, mult, label){
     }
     if(player.aff.shadow && def.hp>0) addHollow(def, 0);
     if(player.weapon.unarmed && hasGod('grom') && def.hp>0 && rng() < (buff('ironbody')?0.3:0) + (godRank()>=3?0.15:0)){ applyStatus(def,'stun',1); note+=' staggered'; }
-    if(extra>0) { def.hp -= extra; }
+    if(extra>0) { def.hp -= Math.round(extra * (el && typeof resistMult==='function' ? resistMult(def, el) : 1)); }   /* 2026-09-22 audit: the enchant's fire/light/dark share honours resistance */
   }
   if(att!==player && att.base && att.base.el){
     el = att.base.el;
-    var add = Math.max(1, Math.round(base*0.25*resistMult(def, elemToType(el))));
+    var add = Math.max(1, Math.round(base*0.50*resistMult(def, elemToType(el))));   /* 2026-09-23 (Justin): half the blow as its element, past armour */
     if(rng() < 0.22){
       if(el==='fire'){ applyStatus(def,'burn',3,sDMG(2)); note=' <span class="c-fire">burning</span>'; }
       else if(el==='water'){ addChill(def); note=' chilled'; }
@@ -408,7 +436,7 @@ function attack(att, def, mult, label){
   if(def!==player) def.caughtOff=-1;   /* the surprise is spent: it knows now */
   if(def!==player && def.living && rng()<0.3) setG(def.x,def.y,G_BLOOD);
   if(def.hp<=0){ kill(def, att); }
-  else if(att===player && hasP('cleaving') && !label){
+  if(att===player && hasP('cleaving') && !label){   /* 2026-09-22 audit: the swing carries on through a killing blow too */
     var other=ents.filter(function(o){ return o.foe && o!==def && dist(player,o)<=1; })[0];
     if(other){ log('Your swing carries into '+other.name+'.','c-info'); attack(player, other, 0.5, 'Cleave'); }
   }
@@ -421,7 +449,9 @@ var pendingExtra=null;
 function applyStatus(e,key,turns,extra){
   if(!e || e.hp<=0) return;
   if(e===player){
-    if(key==='stun' && hasP('unstoppable')){ log('Unstoppable: the stun fails.','c-good'); return; }
+    /* 2026-09-22 (Justin): nothing holds an Unstoppable fighter - stun, slow, root (webs), chill and freeze all fail.
+       The label still reads "stun, slow and knockback"; fear, blind and the damage statuses are not movement. */
+    if((key==='stun' || key==='slow' || key==='root' || key==='frozen' || key==='chill') && hasP('unstoppable')){ log('Unstoppable: the '+(key==='frozen'?'freeze':key==='root'?'hold':key)+' fails.','c-good'); return; }
     if(hasP('ironConst')) turns=Math.max(1,Math.round(turns/2));
   } else {
     if(e.base.boss && (key==='stun'||key==='fear'||key==='root'||key==='frozen')) turns=1;
@@ -431,11 +461,14 @@ function applyStatus(e,key,turns,extra){
   if(key==='burn'){ if(at(e.x,e.y)===WATER) return; e.st.burn={t:Math.max(turns, cur?cur.t:0), d:extra||sDMG(2)}; }
   else e.st[key] = {t:Math.max(turns, cur&&cur.t||0), d:extra};
   if(key==='burn') sfx('status-burn'); else if(key==='stun') sfx('status-stun'); else if(key==='fear') sfx('status-fear');
+  else if(key==='root') sfx('status-root'); else if(key==='blind') sfx('status-blind'); else if(key==='poison') sfx('status-poison');
+  else if(key==='bleed') sfx('status-bleed'); else if(key==='slow') sfx('status-slow');
 }
 function addChill(e){
+  if(e===player && hasP('unstoppable')) return;   /* chill never stacks toward a freeze on an Unstoppable fighter (2026-09-22) */
   var c=e.st.chill; var n=(c?c.n:0)+1;
   if(n>=3){ delete e.st.chill; applyStatus(e,'frozen',2); if(e!==player) e.st.imm_frozen={t:5}; sfx('status-freeze'); floatText(e.x,e.y,'frozen','ice'); }
-  else e.st.chill={t:4, n:n};
+  else e.st.chill={t:(e===player && hasP('ironConst'))?2:4, n:n};   /* Iron Constitution halves a chill too (2026-09-22) */
 }
 /* Hollowing (Shadow 6): n stacks are added, n=0 only refreshes a stack the target already carries - a
    melee shadow build keeps its own Hollow alive by swinging. 5 stacks, 5 turns; each is +5% damage taken
@@ -491,8 +524,8 @@ function kill(e, by){
   var seenIt = vis[idxOf(e.x,e.y)] || revealAll;
   if(seenIt) fx.push({k:'d', e:{x:e.x, y:e.y, col:e.col, sprite:e.base.sprite, art:e.base.art, flip: (player.x<e.x) !== !!e.base.artLeft},
                       t0:Math.max(performance.now(), fxClock)+60, dur:900});
+  if(e.ally){ sfx('ally-death', {at:fxClock}); log(e.name+' falls.','c-info'); return; }
   if(e.base.sfx) sfx(e.base.sfx+'-death', {at:fxClock});
-  if(e.ally){ log(e.name+' falls.','c-info'); return; }
   log(e.name+' dies.','c-kill');
   var byPlayerSide = by===player || (by && by.ally) || by==='player';
   RUN.kills++;
@@ -604,6 +637,10 @@ function boltPath(ax,ay,bx,by){
   }
   return pts;
 }
+/* 2026-09-22 (Justin): a shooter has a clear shot only when nothing stands between it and its target. Enemies do not
+   loose a projectile through their own ranks; the player's arrow hits whatever is in front. Clouds and lobbed
+   sprays are not projectiles and do not use this. */
+function clearShot(a,b){ var p=boltPath(a.x,a.y,b.x,b.y), e=p[p.length-1]; return !!(e && e.x===b.x && e.y===b.y); }
 function previewPath(ax,ay,bx,by,A){
   if(A.kind!=='bolt') return;
   var pts=boltPath(ax,ay,bx,by); ctx.globalAlpha=0.35; ctx.fillStyle='#E8B44A';
@@ -637,7 +674,7 @@ function castAt(x,y){
   if(!A.tech && !A.divine && typeof spellConduct==='function') spellConduct(A);
   setClip(player, A.tech && A.useWeaponRange && player.range<=1 ? 'melee' : 'cast');
   if(key==='challenge'){
-    ents.forEach(function(e){ e.challenged=false; });
+    ents.forEach(function(e){ e.challenged=false; e.cowardMark=false; });
     f.challenged=true; f.challengeBoost = false; f.state='hunt'; f.challengeT=0;
     log('You challenge '+f.name+'. It must face you.','c-good'); sfx('shrine-open'); ringFx(f.x,f.y,'#E8B44A',1.2);
     endTurn(); return true;
@@ -661,10 +698,11 @@ function castAt(x,y){
   if(key==='smite' && (f.base.undead||f.base.shadowy)) base=Math.round(base*1.5);
   if(player.aff.fire && !A.divine) base += player.aff.fire;   /* Kindled: +1 per Fire point on spells too */
   var unaware = offGuard(f) || f.st.stun || f.st.frozen || player.hidden>0;
+  if(typeof numbingDark==='function' && numbingDark(f)) base=Math.round(base*1.5);   /* 2026-09-23 audit: Numbing Dark makes a spell on a Chilled target a surprise attack, x1.5 (DESIGN 12, step 7) */
   var crit = combatRoll(player.crit + (!A.tech && hasP('archmage')?0.05:0) + (unaware&&player.aff.shadow?0.05*player.aff.shadow:0),true);   /* spells use the normal crit chance */
   if(crit){base=Math.round(base*1.6);if(typeof gainAmusement==='function')gainAmusement(1);}
   else if(!A.tech && !A.divine && rng()<orbCrit()){ crit=true; base=Math.round(base*1.5); }
-  var wasAsleep = f.state==='asleep';
+  var wasAsleep = f.state==='asleep' || (typeof offGuard==='function' && offGuard(f));   /* 2026-09-22 audit: "6 if it was unaware", not only asleep */
   LAST_HIT={att:player, def:f, crit:crit, surprise:unaware, spell:true};
   var d=applyDamage(f, base, dmgType==='phys'?'phys':dmgType, player);
   if(!A.tech && !A.divine && typeof spellOnHit==='function') spellOnHit(f, d, crit, A);
@@ -719,12 +757,15 @@ function offGuard(e){
 }
 function aiAct(e){
   if(!tickStatus(e)) return;
-  if(e.challengeT && --e.challengeT<=0) e.challenged=false;
+  if(e.challengeT && --e.challengeT<=0){ e.challenged=false; e.cowardMark=false; }
   if(e.st.stun || e.st.frozen){ e.t+=actCost(e); return; }
   var see = canSeePlayer(e), d=dist(e,player);
   if(e.state==='throne'){
+    /* He holds the throne until you walk in - that is the staging. But the room check alone let you stand in
+       the corridor and shoot him to death for free, since nothing outside the room could ever wake him
+       (Justin, 2026-09-23). Anything that has actually hurt him ends the staging too. */
     var rm=roomAt(player.x,player.y);
-    if(see && d<=7 && rm && rm.role==='boss'){ e.state='hunt'; log('<b>'+e.name+'</b> rises from his throne with a roar!','c-you'); sfx('warchief-roar'); playMusic('boss');
+    if((see && d<=7 && rm && rm.role==='boss') || e.hp<e.maxhp){ e.state='hunt'; log('<b>'+e.name+'</b> rises from his throne with a roar!','c-you'); sfx('warchief-roar'); playMusic('boss');
       ents.forEach(function(o){ if(o.guard) o.state='hunt'; }); SHAKE=8; }
     e.t+=actCost(e); return;
   }
@@ -741,7 +782,7 @@ function aiAct(e){
     /* casters */
     if(e.base.caster && see && d<=e.base.castRange){
       e.castCd=(e.castCd||0)-1;
-      if(e.castCd<=0){
+      if(e.castCd<=0 && clearShot(e,player)){   /* a shaman behind its own goblins holds the bolt */
         e.castCd=e.base.castEvery; setClip(e,'attack'); sfx('shaman-cast');
         boltFx(e.x,e.y,player.x,player.y,'fire');
         if(rng() < hostileHitChance(hitChance(e.base.acc+10, player.eva))){
@@ -955,7 +996,7 @@ function allyAct(e){
      something closes on it (2026-09-17 - the form's caster field was never wired up before) */
   if(target && e.castSpell && best>=2 && best<=6){
     e.castCd=(e.castCd||0)-1;
-    if(e.castCd<=0){
+    if(e.castCd<=0 && clearShot(e,target)){   /* nor does your Lich bolt through you or another creature */
       e.castCd=2; setClip(e,'attack');
       if(typeof boltFx==='function') boltFx(e.x, e.y, target.x, target.y, 'shadow');
       var ld=applyDamage(target, roll(e.dmg[0], e.dmg[1]), 'dark', e);

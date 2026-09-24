@@ -23,7 +23,7 @@ var RACES = {
              blurb:'Quick and arcane. +10% speed, spells cost 15% less, +1 range on every ranged attack and spell.',
              sexes:{m:'elf-m', f:'elf-f'}},
   dwarf:    {name:'Dwarf', mods:{mig:1, vit:2}, speed:100,
-             blurb:'Sturdy masters of the forge. Weapons and armor count as +1, and heavy armor costs no evasion.',
+             blurb:'Sturdy masters of the forge. Weapon damage counts as +1, heavy armor costs no evasion, innate Armor is +1, and Forge upgrades cost 25% less.',
              sexes:{m:'dwarf-m', f:'dwarf-f'}},
   fae:      {name:'Fae', mods:{agi:2, foc:1}, speed:100, locked:true, capBonus:1,
              blurb:'Born of one court\'s element: starts with 1 affinity in it and can hold one more affinity point than other races.',
@@ -38,8 +38,8 @@ var RACES = {
 function W(name, dmg, acc, hands, extra){ var w={name:name, dmg:dmg, acc:acc, hands:hands, kind:'weapon'}; for(var k in (extra||{})) w[k]=extra[k]; return w; }
 var WEAPONS = {
   sword:    W('Short Sword',[4,8],0,1,{note:'+5% crit', critBonus:0.05, icon:'item-sword'}),
-  dagger:   W('Dagger',[3,6],10,1,{note:'surprise attacks x1.5; off-hand eligible', icon:'item-dagger', light:true}),
-  mace:     W('Mace',[4,7],-5,1,{note:'ignores 2 armor', pierce:2, icon:'item-mace'}),
+  dagger:   W('Dagger',[3,6],10,1,{note:'surprise attacks +20% on top; off-hand eligible', icon:'item-dagger', light:true}),
+  mace:     W('Mace',[4,7],-5,1,{note:'ignores 2 armor (3 Fine, 4 Masterwork)', pierce:2, icon:'item-mace'}),
   wand:     W('Wand',[1,3],0,1,{note:'spells cost less mana; a little spell damage', spell:0.10, icon:'item-wand'}),
   longsword:W('Long Sword',[7,12],0,2,{note:'+10% crit', critBonus:0.10, icon:'item-longsword'}),
   axe:      W('Battle Axe',[8,14],-10,2,{note:'+25% damage to wounded targets', executioner:0.25, icon:'item-axe'}),
@@ -56,10 +56,10 @@ var ARMORS = {
   plate:   {name:'Plate Armor', armor:5, eva:-10, weight:'heavy', note:'heavy', icon:'item-plate', kind:'armor'}
 };
 var OFFHANDS = {
-  buckler: {name:'Buckler', block:0.10, note:'10% block', icon:'item-buckler', kind:'off'},
-  kite:    {name:'Kite Shield', block:0.20, eva:-5, note:'20% block, -5 evasion', icon:'item-kite', kind:'off'},
+  buckler: {name:'Buckler', block:0.10, note:'light shield', icon:'item-buckler', kind:'off'},
+  kite:    {name:'Kite Shield', block:0.20, eva:-5, note:'heavy shield, -5 evasion', icon:'item-kite', kind:'off'},
   orb:     {name:'Orb', block:0, spell:0.10, note:'spell critical hits', icon:'item-orb', kind:'off'},
-  tome:    {name:'Tome', block:0, manaPct:0.15, note:'+15% max mana', icon:'item-tome', kind:'off'},
+  tome:    {name:'Tome', block:0, manaPct:0.15, note:'+10% max mana', icon:'item-tome', kind:'off'},
   holy:    {name:'Holy Symbol', block:0, divine:0.15, note:'+15% Invoke and prayer strength', icon:'item-holy', kind:'off'},
   /* 2026-09-17: there is no separate off-hand dagger any more. Any light one-handed weapon goes in the off
      hand (see equipFromBag in systems.js), so a plain Dagger from WEAPONS is what the kits hand out and
@@ -96,7 +96,7 @@ var GODS = {
   grom:     {name:'Grom the Unclad', title:'god of the bare fist', sprite:'shrine-grom', color:'#C98A5A',
              rule:'No weapons or shields. Cloth armor only.', invoke:'ironbody', prayers:['ironhide','pummel'],
              boons:['Iron Flesh: +1 unarmed damage and +1 armor per rank.','Staggering Blows: unarmed hits stun 15% of the time.','Mountain’s Fists: every third unarmed attack in a row strikes as a critical hit and knocks the target back a tile.'],
-             gain:'Unarmed kills.'},
+             gain:'Every damaging unarmed hit.'},
   grumbok:  {name:'Grumbok, Who Hates Wizards', title:'god of honest violence', sprite:'shrine-grumbok', color:'#B8453A',
              rule:'No spells, wands or magic sigils. Techniques are fine.', invoke:'bellow', prayers:['rampage','trollblood'],
              boons:['Thick Hide: take 8% less elemental and magic damage, and regenerate HP 25% faster, per rank.','Wizard Hunter: killing a spellcaster restores 10% of your max HP.','Spellbreaker: enemy spells deal half damage to you, and each one that hurts you doubles your next melee hit.'],
@@ -114,13 +114,13 @@ var GODS = {
              boons:['Life Drain: kills heal 1 HP per rank, and your undead have +10% HP and damage per rank.','Undying Servants: Raise Dead brings up a Zombie Bruiser instead of a skeleton.','Lich-Mother: Raise Dead calls a Lich, and your servant rises again once when it is destroyed.'],
              gain:'Kills of the living, extra for kills by your undead.'},
   reginald: {name:'Sir Reginald the Unsneaky', title:'patron of the fair fight', sprite:'shrine-reginald', color:'#9FB0C0',
-             rule:'No surprise attacks and no stealth kills.', invoke:'challenge', prayers:['laststand','rally'],
+             rule:'No surprise attacks and no stealth kills.', invoke:'challenge', prayers:['laststand','lance'],
              boons:['Fair Fight: +4 accuracy and +10% damage against elites and bosses, per rank.','Called Out: a Challenged enemy takes +20% damage from everyone.','Champion: while only one enemy is in view you deal 30% more damage and take 20% less.'],
              gain:'Kills of enemies that see you coming, extra for elites and bosses.'},
   anvil:    {name:'Old Anvil', title:'the smith below', sprite:'shrine-anvil', color:'#E8B44A', tithe:true,
              rule:'No rule. Old Anvil wants essence.', invoke:'temper', prayers:['offering','reforge'],
              boons:['Smith\'s Blessing: +1 weapon damage and enchantments 10% stronger, per rank.','Second Heat: the Forge lets you enchant twice per visit.','Masterwork: Forge upgrades cost 30% less, and gear can be raised to +4.'],
-             gain:'Offering essence (prayer, better at a shrine) and enchanting at the Forge.'},
+             gain:'Spending essence anywhere (1 piety per 5) and enchanting at the Forge.'},
   vellum:   {name:'Vellum, the Open Book', title:'keeper of every spell ever spoken', sprite:'shrine-vellum', color:'#7FA8FF', loves:'elf',
              rule:'No shields, and nothing heavier than light armor. A caster keeps their hands and shoulders free.', invoke:'arcaneward', prayers:['manatide','unbound'],
              boons:['Deep Well: +8% max mana and +8% spell damage per rank.','Spell Echo: a spell you cast has a 20% chance to refund its mana.','Archmage: spells cost 25% less mana, and Spell Echo triggers 35% of the time.'],
@@ -128,9 +128,9 @@ var GODS = {
   wobbles:  {name:'Wobbles, the Giggling Chaos', title:'god of whatever happens next', sprite:'shrine-wobbles', color:'#D98BD0', chaos:true,
              rule:'No rule and no tithe. The cost is that you never know.', invoke:'rolldice', prayers:['rolldice2'],
              boons:['Amused: occasional gifts (and pranks) when things get dramatic; gifts get better as amusement rises. Never kills you directly.','Favourite Toy: interventions lean helpful more often.','Beloved Toy: once per floor, Wobbles snatches you from a killing blow with a random rescue.'],
-             gain:'Every kill (elites count for more) and every new floor. Separately, Amusement rises with drama - low HP, big fights - and drains when nothing is happening; high Amusement brings his gifts and pranks.'}
+             gain:'Every kill (elites count for more) and every new floor. Separately, Amusement rises when things go badly for you - springing a trap, putting on something cursed or unidentified, learning a sigil by using it, taking a status, landing a critical - and drains when nothing is happening; high Amusement brings his gifts and pranks.'}
 };
-var PIETY_RANKS = [0, 100, 300, 650, 1200];   /* rank 1 on joining; ranks 2-5 at these totals. 2026-09-17: doubled monster density made ranks come
+var PIETY_RANKS = [0, 100, 390, 1099, 2636];   /* 2026-09-23 (Justin): ranks 3-5 cost 30% more per rank (x1.3^(rank-2)); piety gain grows 30% per biome, favor does not */   /* rank 1 on joining; ranks 2-5 at these totals. 2026-09-17: doubled monster density made ranks come
    too fast (rank 3 by floor 3); now about rank 2 by floor 3, rank 3 early in biome 2, and rank 5 is a late-run goal */
 /* what each rank unlocks: 1 passive (grows every rank), 2 first prayer, 3 signature boon, 4 second prayer, 5 capstone passive */
 var BOON_RANKS = [1, 3, 5];
@@ -141,7 +141,7 @@ var ABILITIES = {
   /* class */
   double:  {name:'Double Strike', cost:12, tech:true, kind:'melee2', icon:'ic-double-strike', sfx:'double-strike',
             desc:'Two weapon attacks on an adjacent enemy in one turn.'},
-  missile: {name:'Magic Missile', cost:6, kind:'bolt', range:6, type:'magic', base:[5,8], always:true, perAffinity:1, icon:'ic-magic-missile', el:'magic',
+  missile: {name:'Magic Missile', cost:6, kind:'bolt', range:6, type:'magic', base:[3,6],   /* 2026-09-23 (Justin): 2 less base damage, was 5-8 */ always:true, perAffinity:1, icon:'ic-magic-missile', el:'magic',
             desc:'Always hits. Magic damage that nothing resists. +1 damage for every affinity point you hold.'},
   sap:     {name:'Sap', cost:7, tech:true, kind:'bolt', range:1, useWeaponRange:true, type:'phys', base:[2,4], status:{stun:3}, icon:'ic-sap',
             desc:'Melee or ranged: knocks the target out for 3 turns (6 if it was unaware). A knocked-out target takes surprise attacks.'},
@@ -184,7 +184,7 @@ var PRAYERS = {
   consecrate: {name:'Consecrate', favor:10, rank:2, desc:'Cleanse your statuses; undead and shadow creatures within 3 take 8 light damage and flee.'},
   sanctuary:  {name:'Sanctuary', favor:25, rank:4, desc:'Every enemy within 5 is Feared for 4 turns.'},
   corpsefeast:{name:'Corpse Feast', favor:25, rank:4, desc:'Heal 30% of max HP; your undead are fully restored.'},
-  laststand:  {name:'Last Stand', favor:10, rank:2, desc:'Take 35% less damage for 10 turns.'},
+  laststand:  {name:'Last Stand', favor:10, rank:2, desc:'Take 50% less damage for 10 turns.'},   /* balance-rulings.js rewrites the card: half health only, 50% */
   rally:      {name:'Rally', favor:25, rank:4, desc:'Heal 25% of max HP, remove statuses, +10 accuracy for 10 turns.'},
   offering:   {name:'Offering', favor:0, rank:2, essence:15, desc:'Offer 15 essence: +10 piety and favor (x2 at a shrine).'},
   reforge:    {name:'Reforge', favor:25, rank:4, desc:'Permanently add +1 to your main-hand weapon.'},
@@ -195,15 +195,15 @@ var PRAYERS = {
 
 /* ---------------------------------------------------------------- sigils (crafted at the Forge, found unidentified) */
 var SIGILS = {
-  firestorm:{name:'Fire sigil', motes:['fire'], desc:'Flames burst out to 3 tiles: 8 fire damage and Burning.'},
+  firestorm:{name:'Fire sigil', motes:['fire'], desc:'Flames burst out to 2 tiles: 8 fire damage plus the floor number, and Burning.'},
   mana:     {name:'Water sigil', motes:['water'], desc:'Restore 50% of your mana.'},
   levitate: {name:'Air sigil', motes:['air'], desc:'Float for 25 turns: cross chasms and water, ignore floor traps.'},
   stoneskin:{name:'Earth sigil', motes:['earth'], desc:'Stone skin: -3 physical damage per hit for 15 turns.'},
-  heal:     {name:'Light sigil', motes:['light'], desc:'Heal 35% of max HP, then 5% a turn for 15 turns. (Hurts Gloomlings.)'},
+  heal:     {name:'Light sigil', motes:['light'], desc:'Heal 35% of max HP, then 5% a turn for 15 turns.'},
   vanish:   {name:'Shadow sigil', motes:['shadow'], desc:'Vanish for 10 turns; enemies lose track of you.'},
   identify: {name:'Sigil of Knowing', motes:['light','shadow'], desc:'Identify every sigil you carry.'},
   mapping:  {name:'Sigil of the Deep Map', motes:['shadow','earth'], desc:'Reveal this floor\'s layout.'},
-  blink:    {name:'Sigil of Blinking', motes:['air','shadow'], desc:'Teleport to a spot you can see within 6 tiles.'}
+  blink:    {name:'Sigil of Blinking', motes:['air','shadow'], desc:'Teleport to a random spot you can see, 3 to 6 tiles away.'}
 };
 var SIGIL_LOOKS = ['ashen','coiled','cracked','weeping','humming','bone','tarnished','woven','gilded'];
 
@@ -247,44 +247,44 @@ var PROPS = {
 
 /* ---------------------------------------------------------------- monsters, biome 1 */
 var MONSTERS = {
-  rat:     {name:'Dungeon Rat', sprite:'m-rat', col:'#8C7A63', ch:'r', hp:8, dmg:[2,3], acc:56, eva:22, armor:0, speed:100, range:1, xp:6,
+  rat:     {name:'Dungeon Rat', sprite:'m-rat', col:'#8C7A63', ch:'r', hp:8, dmg:[4,5], acc:56, eva:22, armor:0, speed:100, range:1, xp:4,
             band:[1,3], w:26, pack:[2,3], art:0.75, sfx:'rat', living:true},
-  bat:     {name:'Cave Bat', sprite:'m-bat', col:'#9E8CA8', ch:'b', hp:8, dmg:[2,3], acc:58, eva:32, armor:0, speed:170, range:1, xp:8,
+  bat:     {name:'Cave Bat', sprite:'m-bat', col:'#9E8CA8', ch:'b', hp:8, dmg:[2,3], acc:58, eva:32, armor:0, speed:170, range:1, xp:6,
             band:[1,2], w:6, erratic:true, flying:true, art:0.7, sfx:'bat', living:true},
-  goblin:  {name:'Goblin', sprite:'m-goblin', col:'#6F9350', ch:'g', hp:16, dmg:[3,5], acc:60, eva:16, armor:1, speed:100, range:1, xp:12,
+  goblin:  {name:'Goblin', sprite:'m-goblin', col:'#6F9350', ch:'g', hp:16, dmg:[5,7], acc:60, eva:16, armor:1, speed:100, range:1, xp:8,
             band:[1,5], w:26, art:0.9, sfx:'goblin', living:true, artLeft:true},
-  archer:  {name:'Goblin Archer', sprite:'m-goblin-archer', col:'#B8894A', ch:'a', hp:14, dmg:[3,5], acc:60, eva:18, armor:0, speed:100, range:6, xp:14,
+  archer:  {name:'Goblin Archer', sprite:'m-goblin-archer', col:'#B8894A', ch:'a', hp:14, dmg:[3,5], acc:60, eva:18, armor:0, speed:100, range:6, xp:10,
             band:[2,5], w:18, kiter:true, art:0.9, sfx:'goblin', living:true},
-  brute:   {name:'Goblin Brute', sprite:'m-goblin-brute', col:'#4E7A3C', ch:'G', hp:30, dmg:[5,8], acc:58, eva:10, armor:2, speed:100, range:1, xp:26,
+  brute:   {name:'Goblin Brute', sprite:'m-goblin-brute', col:'#4E7A3C', ch:'G', hp:30, dmg:[5,8], acc:58, eva:10, armor:2, speed:100, range:1, xp:18,
             band:[3,5], w:14, art:1.05, sfx:'brute', living:true},
-  slime:   {name:'Rock Slime', sprite:'m-slime', col:'#7C8C9E', ch:'s', hp:22, dmg:[4,6], acc:54, eva:8, armor:3, speed:70, range:1, xp:20,
+  slime:   {name:'Rock Slime', sprite:'m-slime', col:'#7C8C9E', ch:'s', hp:22, dmg:[4,6], acc:54, eva:8, armor:3, speed:70, range:1, xp:14,
             band:[2,5], w:12, splits:true, art:0.8, sfx:'slime'},
-  shaman:  {name:'Goblin Shaman', sprite:'m-goblin-shaman', col:'#C25A3A', ch:'h', hp:16, dmg:[3,5], acc:64, eva:14, armor:0, speed:100, range:1, xp:26,
+  shaman:  {name:'Goblin Shaman', sprite:'m-goblin-shaman', col:'#C25A3A', ch:'h', hp:16, dmg:[3,5], acc:64, eva:14, armor:0, speed:100, range:1, xp:18,
             band:[3,5], w:10, caster:'firebolt', castRange:6, castEvery:4, el:'fire', art:0.9, sfx:'shaman', living:true, spellcaster:true},
   skeleton:{name:'Skeleton', sprite:'m-skeleton', col:'#D8CEBC', ch:'k', hp:16, dmg:[3,5], acc:62, eva:18, armor:2, speed:100, range:1, xp:18,
             band:[9,9], w:0, undead:true, art:0.95, sfx:'skeleton'},
   mimic:   {name:'Mimic', sprite:'m-mimic', col:'#8A5A2A', ch:'m', hp:30, dmg:[5,8], acc:64, eva:10, armor:3, speed:100, range:1, xp:30,
             band:[9,9], w:0, art:0.85, sfx:'mimic'},
-  warchief:{name:'Grukk the Warchief', sprite:'m-goblin-warchief', col:'#A8452A', ch:'W', hp:110, dmg:[7,12], acc:68, eva:14, armor:3, speed:100, range:1, xp:220,
+  warchief:{name:'Grukk the Warchief', sprite:'m-goblin-warchief', col:'#A8452A', ch:'W', hp:143, dmg:[7,12], acc:68, eva:14, armor:3, speed:100, range:1, xp:220,
             band:[9,9], w:0, boss:true, elite:true, art:1.35, sfx:'warchief', living:true},
   /* elementalings: rare, drop a mote */
-  emberling:{name:'Emberling', sprite:'m-emberling', col:'#E2622B', ch:'*', hp:16, dmg:[3,5], acc:62, eva:22, armor:0, speed:100, range:1, xp:30, band:[2,5], rare:true, el:'fire', drop:'mote', art:0.7, sfx:'elementaling'},
-  tideling: {name:'Dropling', sprite:'m-tideling', col:'#62A8D8', ch:'*', hp:16, dmg:[3,5], acc:60, eva:20, armor:1, speed:100, range:1, xp:30, band:[2,5], rare:true, el:'water', drop:'mote', art:0.7, sfx:'elementaling'},
-  galeling: {name:'Puffling', sprite:'m-galeling', col:'#E8D27A', ch:'*', hp:14, dmg:[3,5], acc:64, eva:30, armor:0, speed:140, range:1, xp:30, band:[2,5], rare:true, el:'air', drop:'mote', erratic:true, flying:true, art:0.7, sfx:'elementaling'},
-  stoneling:{name:'Pebbling', sprite:'m-stoneling', col:'#7FA05A', ch:'*', hp:20, dmg:[3,5], acc:56, eva:8, armor:3, speed:100, range:1, xp:30, band:[2,5], rare:true, el:'earth', drop:'mote', art:0.7, sfx:'elementaling'},
-  wisp:     {name:'Inking', sprite:'m-wisp', col:'#8A6FB0', ch:'*', hp:16, dmg:[3,5], acc:64, eva:26, armor:0, speed:100, range:1, xp:30, band:[3,5], rare:true, el:'shadow', drop:'mote', shadowy:true, art:0.7, sfx:'elementaling'},
-  lumenling:{name:'Glimmerling', sprite:'m-lumenling', col:'#F6E7B0', ch:'*', hp:16, dmg:[3,5], acc:64, eva:24, armor:0, speed:100, range:1, xp:34, band:[3,5], rare:true, el:'light', drop:'mote', art:0.7, sfx:'elementaling'}
+  emberling:{name:'Emberling', sprite:'m-emberling', col:'#E2622B', ch:'*', hp:16, dmg:[3,5], acc:62, eva:22, armor:0, speed:100, range:1, xp:21, band:[2,5], rare:true, el:'fire', drop:'mote', art:0.7, sfx:'elementaling'},
+  tideling: {name:'Dropling', sprite:'m-tideling', col:'#62A8D8', ch:'*', hp:16, dmg:[3,5], acc:60, eva:20, armor:1, speed:100, range:1, xp:21, band:[2,5], rare:true, el:'water', drop:'mote', art:0.7, sfx:'elementaling'},
+  galeling: {name:'Puffling', sprite:'m-galeling', col:'#E8D27A', ch:'*', hp:14, dmg:[3,5], acc:64, eva:30, armor:0, speed:140, range:1, xp:21, band:[2,5], rare:true, el:'air', drop:'mote', erratic:true, flying:true, art:0.7, sfx:'elementaling'},
+  stoneling:{name:'Pebbling', sprite:'m-stoneling', col:'#7FA05A', ch:'*', hp:20, dmg:[3,5], acc:56, eva:8, armor:3, speed:100, range:1, xp:21, band:[2,5], rare:true, el:'earth', drop:'mote', art:0.7, sfx:'elementaling'},
+  wisp:     {name:'Inking', sprite:'m-wisp', col:'#8A6FB0', ch:'*', hp:16, dmg:[3,5], acc:64, eva:26, armor:0, speed:100, range:1, xp:21, band:[3,5], rare:true, el:'shadow', drop:'mote', shadowy:true, art:0.7, sfx:'elementaling'},
+  lumenling:{name:'Glimmerling', sprite:'m-lumenling', col:'#F6E7B0', ch:'*', hp:16, dmg:[3,5], acc:64, eva:24, armor:0, speed:100, range:1, xp:24, band:[3,5], rare:true, el:'light', drop:'mote', art:0.7, sfx:'elementaling'}
 };
 /* ---------------------------------------------------------------- drop tables
    chance: odds that a kill drops anything at all (the Ring of Luck raises it). Then one pick from table,
    weighted: essence (currency), gear (a random weapon, armor, off-hand, ring or amulet), sigil, food.
    Elementalings always drop their mote instead; the boss has his own hoard. */
 var DROPS = {
-  rat:     {chance:0.10, table:{essence:8, food:2}},
+  rat:     {chance:0.10, table:{essence:8, food:4}},
   bat:     {chance:0.08, table:{essence:18, sigil:1}},
-  goblin:  {chance:0.18, table:{essence:12, gear:4, sigil:1, food:2}},
+  goblin:  {chance:0.18, table:{essence:12, gear:4, sigil:1, food:4}},
   archer:  {chance:0.20, table:{essence:10, gear:6, sigil:1}},
-  brute:   {chance:0.35, table:{essence:4, gear:5, food:1}},
+  brute:   {chance:0.35, table:{essence:4, gear:5, food:2}},
   slime:   {chance:0.15, table:{essence:16, sigil:1}},
   shaman:  {chance:0.35, table:{essence:6, sigil:3, gear:4}},
   skeleton:{chance:0.25, table:{essence:4, gear:6}},

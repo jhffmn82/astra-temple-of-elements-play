@@ -27,24 +27,24 @@ function deepMobsOn(){ return typeof bidx==='function' && bidx()===3 && !(floorM
   /* region: 0 temple, 1 Underdark, 2 volcanic. deepAI names the special turn (DEEP_AI below). bleeds: chance a
      landed hit opens a Bleed. darksight: sees through a globe of darkness. */
   M.drowblade    = {name:'Drow Blade', sprite:'m-drow-blade', col:'#6A3A5A', ch:'d', hp:90, dmg:[10,14], acc:70, eva:24, armor:3, speed:100, range:1, xp:48,
-                    band:[16,20], w:24, region:0, deepAI:'blade', bleeds:0.30, darksight:true, living:true, art:0.95, artLeft:true, sfx:'goblin'};
-  M.drowpriestess= {name:'Drow Priestess', sprite:'m-drow-priestess', col:'#9A2A4A', ch:'p', hp:70, dmg:[8,11], acc:68, eva:18, armor:1, speed:100, range:1, xp:56,
+                    band:[16,20], w:24, region:0, deepAI:'blade', bleeds:0.50, darksight:true, living:true, art:0.95, artLeft:true, sfx:'drow'};
+  M.drowpriestess= {name:'Drow Priestess', sprite:'m-drow-priestess', col:'#9A2A4A', ch:'p', hp:70, dmg:[12,17], acc:68, eva:18, armor:1, speed:100, range:1, xp:56,
                     band:[16,20], w:12, region:0, deepAI:'priestess', darksight:true, living:true, spellcaster:true, art:0.95, artLeft:true, sfx:'shaman'};
   M.thoughteater = {name:'Thought Eater', sprite:'m-thought-eater', col:'#C89AD0', ch:'t', hp:55, dmg:[8,11], acc:72, eva:28, armor:0, speed:100, range:1, xp:50,
-                    band:[17,20], w:10, region:0, deepAI:'eater', flying:true, hover:true, living:true, spellcaster:true, art:0.8, artLeft:true, sfx:'bat'};
+                    band:[17,20], w:10, region:0, deepAI:'eater', el:'shadow', flying:true, hover:true, living:true, spellcaster:true, art:0.8, artLeft:true, sfx:'imp'};
   M.webspitter   = {name:'Web Spitter', sprite:'m-web-spitter', col:'#4A3A5A', ch:'w', hp:70, dmg:[8,11], acc:68, eva:20, armor:2, speed:100, range:1, xp:40,
-                    band:[16,20], w:18, region:1, deepAI:'spitter', bleeds:0.20, living:true, spider:true, art:0.85, artLeft:true, sfx:'rat'};
+                    band:[16,20], w:18, region:1, deepAI:'spitter', bleeds:0.35, living:true, spider:true, art:0.85, artLeft:true, sfx:'spider'};
   M.spiderling   = {name:'Spiderling', sprite:'m-spiderling', col:'#5A3A4A', ch:'s', hp:15, dmg:[3,4], acc:64, eva:26, armor:0, speed:100, range:1, xp:8,
-                    band:[16,20], w:16, pack:[3,5], region:1, bleeds:0.15, living:true, spider:true, art:0.5, artLeft:true, sfx:'rat'};
+                    band:[16,20], w:16, pack:[3,5], region:1, bleeds:0.30, living:true, spider:true, art:0.5, artLeft:true, sfx:'spider'};
   M.drider       = {name:'Drider', sprite:'m-drider', col:'#3A2A3A', ch:'D', hp:180, dmg:[13,18], acc:70, eva:14, armor:4, speed:100, range:6, xp:120,
-                    band:[17,20], w:6, region:1, deepAI:'drider', elite:true, fangs:0.35, darksight:true, living:true, spider:true, art:1.4, artLeft:true, sfx:'brute'};
-  M.fireimp      = {name:'Fire Imp', sprite:'m-fire-imp', col:'#E2522B', ch:'i', hp:60, dmg:[8,11], acc:70, eva:30, armor:0, speed:100, range:1, xp:42,
-                    band:[16,20], w:18, region:2, deepAI:'imp', el:'fire', flying:true, hover:true, living:true, spellcaster:true, art:0.75, artLeft:true, sfx:'bat'};
+                    band:[17,20], w:6, region:1, deepAI:'drider', elite:true, heavy:true, el:'earth', fangs:0.35, darksight:true, living:true, spider:true, art:1.4, artLeft:true, sfx:'brute'};
+  M.fireimp      = {name:'Fire Imp', sprite:'m-fire-imp', col:'#E2522B', ch:'i', hp:60, dmg:[12,17], acc:70, eva:30, armor:0, speed:100, range:1, xp:42,
+                    band:[16,20], w:18, region:2, deepAI:'imp', el:'fire', flying:true, hover:true, living:true, spellcaster:true, art:0.75, artLeft:true, sfx:'imp'};
   M.emberspider  = {name:'Ember Spider', sprite:'m-ember-spider', col:'#B8482A', ch:'e', hp:90, dmg:[10,13], acc:68, eva:18, armor:3, speed:100, range:1, xp:46,
-                    band:[16,20], w:20, region:2, el:'fire', emberBite:0.30, living:true, spider:true, art:0.9, artLeft:true, sfx:'rat'};
+                    band:[16,20], w:20, region:2, el:'fire', emberBite:0.30, living:true, spider:true, art:0.9, artLeft:true, sfx:'spider'};
   /* the Matron of the Web: tuned by hand for floor 20, so no floor curve (fixed, like the other bosses) */
   M.matron       = {name:'The Matron of the Web', sprite:'m-matron', col:'#8A1A3A', ch:'M', hp:380, dmg:[15,21], acc:74, eva:12, armor:5, speed:100, range:1, xp:900,
-                    band:[20,20], w:0, boss:true, elite:true, fixed:true, bleeds:0.5, darksight:true, living:true, spellcaster:true, art:2.1, artLeft:true, sfx:'warchief'};
+                    band:[20,20], w:0, boss:true, elite:true, fixed:true, heavy:true, bleeds:0.5, darksight:true, living:true, spellcaster:true, art:2.1, artLeft:true, sfx:'matron'};
   DROPS.drowblade     = {chance:0.25, table:{essence:10, gear:5, sigil:1}};
   DROPS.drowpriestess = {chance:0.35, table:{essence:8, sigil:3, gear:3, food:1}};
   DROPS.thoughteater  = {chance:0.30, table:{essence:12, sigil:3}};
@@ -66,23 +66,23 @@ var DEEP_KINDS = ['drowblade','drowpriestess','thoughteater','webspitter','spide
 var DEEP_HINT = {
   drowblade:'A duelist. Its cuts bleed, and it throws globes of darkness it can see through.',
   drowpriestess:'Heals and wards the drow, calls spiderlings, and drinks from the blood bolts she throws. Kill her first.',
-  thoughteater:'Saps your mana to heal itself. With no mana left, it dazes you instead. Fragile.',
+  thoughteater:'Saps your mana to heal itself, and half of what it takes tears you as magic damage. With no mana left, it dazes you instead. Fragile.',
   webspitter:'A landed web shot always pins you for a turn, then slows you for three. Its bite can bleed.',
   spiderling:'Weak alone, never alone.',
   drider:'Shoots from range, poisons with its fangs up close, and webs you in place.',
-  fireimp:'Hurls fire bolts that burn you and set webs and grass alight.',
+  fireimp:'Hurls a fire bolt every turn from up to 6 tiles; a hit always sets you burning and lights webs and grass. Backs away from melee.',
   emberspider:'Its bite burns.',
   matron:'Channels rituals on the circles: hit her hard, or stun her, to break them. Calls driders and spiderlings.'
 };
 
 /* ---------------------------------------------------------------- tunables (placeholders, all of them) */
-var BLEED   = {turns:4, base:2, per:0.15};                 /* damage a turn = 2 + 0.15 per floor (4 at floor 16), 4 turns */
+var BLEED   = {turns:4, base:3, per:0.25};                 /* 2026-09-23 (Justin): 3 + 0.25 per floor (7 at floor 16), 4 turns; it ignores armour */
 var GLOBE   = {r:1, turns:5, cd:[10,14], first:[1,3]};     /* 3x3 of darkness on you for 5 turns */
 var PRIEST  = {healPct:0.30, healFlat:10, healCd:4, ward:8, wardTurns:8, wardCd:7, callCd:9, callN:[1,2], capEach:2, capFloor:8, range:6};
 var WEBSHOT = {cd:4, range:5, pin:1, slow:3};
 var DRIDER  = {webCd:6, poison:[4,3]};                     /* fangs: poison 4 turns, 3 a turn */
 var SAP     = {cd:3, range:6, base:6, per:0.5, heal:2};    /* drains 6 + half the floor in MP (14 at 16); heals 2 HP per MP */
-var IMP     = {cd:2, range:6, burn:0.40};
+var IMP     = {cd:1, range:6, burn:1.0};    /* 2026-09-23 (Justin): a bolt every turn, and a hit always burns */
 var MATRON  = {phase:[0.66, 0.33], ritTurns:3, ritBreak:0.08, ritEvery:[8,6,5], tithe:[18,26], titheCap:0.30, titheHeal:2,
                venom:[12,18], venomCap:0.30, venomCd:5, webCd:5, broodDriders:2, broodSpiderlings:[2,3]};
 
@@ -396,6 +396,8 @@ var DEEP_AI = {
           var h=Math.min(e.maxhp-e.hp, Math.round(n*SAP.heal)); e.hp+=h;
           floatText(player.x,player.y,'-'+n+' mp','magic'); if(h>0) floatText(e.x,e.y,'+'+h,'heal');
           log('The <b>Thought Eater</b> saps <b>'+n+' mana</b> out of your head'+(h>0 ? ' and swells (+'+h+' HP)' : '')+'.','c-you');
+          /* 2026-09-23 (Justin): the sap hurts too - half the mana taken lands as magic damage (past armour, Spell Ward may turn it) */
+          if(n>0) deepHurt(player, Math.round(n*0.5), 'magic', e, 'The <b>Thought Eater</b> feeds on the torn thoughts');
         } else {
           applyStatus(player,'stun',1); floatText(player.x,player.y,'dazed','magic');
           log('The <b>Thought Eater</b> finds no mana left to eat and rattles your empty mind: <b>dazed</b> for a turn.','c-you');
@@ -439,7 +441,7 @@ var DEEP_AI = {
       }
       e.t+=actCost(e); return true;
     }
-    if(d<=1 && rng()<0.5 && !e.st.root && deepCanFlee(e)){ if(!tickStatus(e)) return true; fleeStep(e); e.t+=actCost(e); return true; }
+    if(d<=1 && !e.st.root && deepCanFlee(e)){ if(!tickStatus(e)) return true; fleeStep(e); e.t+=actCost(e); return true; }   /* 2026-09-23 (Justin): it fights from range, so it always backs off when it can */
     return false;
   }
 };
@@ -539,7 +541,7 @@ function matronWake(e, M){
   e.state='hunt'; e.caughtOff=-1; M.nextRit=turn+4;
   ents.forEach(function(o){ if(o.guard && o.foe) o.state='hunt'; });
   log('<b>The Matron of the Web</b> uncoils from her throne, eight legs unfolding. "Another offering walks in on its own."','c-you');
-  sfx('warchief-roar'); if(typeof playMusic==='function') playMusic('boss'); SHAKE=8;
+  sfx('matron-intro'); if(typeof playMusic==='function') playMusic('boss'); SHAKE=8;
 }
 function matronStartRitual(e, M){
   var kinds = M.phase>=2 ? ['tithe','brood','tithe'] : ['tithe','brood'], kind=kinds[M.n%kinds.length];
@@ -639,7 +641,7 @@ function matronAct(e){
   /* phase shrieks */
   var pct=e.hp/e.maxhp;
   if(M.phase<2 && pct<MATRON.phase[M.phase]){
-    M.phase++; setClip(e,'attack'); sfx('warchief-roar'); SHAKE=10; ringFx(e.x, e.y, '#8A1A3A', 4);
+    M.phase++; setClip(e,'attack'); sfx('matron-intro'); SHAKE=10; ringFx(e.x, e.y, '#8A1A3A', 4);
     matronBrood(e, 1, M.phase===1 ? 2 : 3, '<b>The Matron shrieks</b>, and the webs overhead shake.');
     e.t+=actCost(e); return;
   }

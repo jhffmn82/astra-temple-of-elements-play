@@ -9,7 +9,7 @@
 (function(){
   var M=MONSTERS;
   M.shambler   = {name:'Shambler', sprite:'m-shambler', col:'#8FA37A', ch:'z', hp:40, dmg:[5,8], acc:60, eva:8, armor:1, speed:100, range:1, xp:22,
-                  band:[6,8], w:22, undead:true, rises:true, art:0.95, sfx:'skeleton'};
+                  band:[6,8], w:22, undead:true, rises:true, art:0.95, sfx:'zombie'};
   M.gravebeetle= {name:'Grave Beetle', sprite:'m-grave-beetle', col:'#3E5A3A', ch:'b', hp:40, dmg:[5,8], acc:62, eva:12, armor:3, speed:100, range:1, xp:20,
                   band:[6,8], w:18, fumes:true, living:true, art:0.8, sfx:'slime'};
   M.skeleton.band=[6,10]; M.skeleton.w=18; M.skeleton.boneType=true; M.skeleton.sprite='m-crypt-skeleton';   /* Justin's Crypt sprite set, 2026-09-17 */
@@ -18,22 +18,22 @@
   M.bonearcher = {name:'Bone Archer', sprite:'m-bone-archer', col:'#D8CEBC', ch:'a', hp:36, dmg:[5,8], acc:64, eva:16, armor:1, speed:100, range:6, xp:26,
                   band:[7,10], w:14, undead:true, reloads:true, poisons:0.65, art:0.95, sfx:'skeleton'};
   M.shade      = {name:'Shade', sprite:'m-shade', col:'#5A3E7A', ch:'S', hp:40, dmg:[5,8], acc:66, eva:26, armor:0, speed:100, range:1, xp:30,
-                  band:[7,10], w:10, undead:true, shadowy:true, phases:true, el:'shadow', art:0.95, sfx:'elementaling'};
+                  band:[7,10], w:10, undead:true, shadowy:true, phases:true, el:'shadow', art:0.95, sfx:'wisp'};
   M.gravebloat = {name:'Grave Bloat', sprite:'m-grave-bloat', col:'#9FBF7A', ch:'B', hp:75, dmg:[8,11], acc:58, eva:4, armor:2, speed:100, range:1, xp:38,
-                  band:[8,10], w:10, undead:true, bursts:true, rots:true, art:1.1, sfx:'brute'};
+                  band:[8,10], w:10, undead:true, bursts:true, rots:true, art:1.1, sfx:'zombie'};
   M.acolyte    = {name:'Necro-Acolyte', sprite:'m-necro-acolyte', col:'#6A3E8A', ch:'n', hp:36, dmg:[5,8], acc:62, eva:14, armor:0, speed:100, range:1, xp:40,
                   band:[9,10], w:8, living:true, spellcaster:true, summoner:true, art:0.95, sfx:'shaman'};
   M.morty      = {name:'Morty the Mostly-Dead', sprite:'m-morty', col:'#7A4FB0', ch:'M', hp:170, dmg:[8,13], acc:70, eva:18, armor:3, speed:100, range:1, xp:450,
-                  band:[10,10], w:0, boss:true, elite:true, undead:true, spellcaster:true, art:1.2, sfx:'shaman'};
+                  band:[10,10], w:0, boss:true, elite:true, undead:true, spellcaster:true, art:1.2, sfx:'morty'};
   M.phylactery = {name:'Phylactery', sprite:'m-phylactery', col:'#6FE08A', ch:'&', hp:60, dmg:[0,0], acc:0, eva:0, armor:12, speed:100, range:0, xp:60,
                   band:[10,10], w:0, still:true, object:true, art:0.9};
   /* elementalings roam every biome */
   ['emberling','tideling','galeling','stoneling','wisp','lumenling'].forEach(function(k){ if(M[k]) M[k].band=[M[k].band[0], 25]; });
-  DROPS.shambler   = {chance:0.12, table:{essence:10, food:2}};
+  DROPS.shambler   = {chance:0.12, table:{essence:10, food:4}};
   DROPS.gravebeetle= {chance:0.14, table:{essence:12, sigil:1}};
   DROPS.bonearcher = {chance:0.22, table:{essence:8, gear:6, sigil:1}};
   DROPS.shade      = {chance:0.20, table:{essence:10, sigil:3}};
-  DROPS.gravebloat = {chance:0.35, table:{essence:6, gear:5, food:1}};
+  DROPS.gravebloat = {chance:0.35, table:{essence:6, gear:5, food:2}};
   DROPS.acolyte    = {chance:0.40, table:{essence:6, sigil:4, gear:4}};
   DROPS.phylactery = {chance:0, table:{essence:1}};
 })();
@@ -194,7 +194,7 @@ applyDamage = function(target, amount, type, source){
   var d=_applyDamageCrypt(target, amount, type, source);
   if(target===player && source && source.base && d>0){
     if(source.base.phases){ var drain=Math.min(Math.floor(player.mp), 4); if(drain>0){ player.mp-=drain; floatText(player.x,player.y,'-'+drain+' mp','magic'); } }
-    if(source.base.rots){ player.st.rot={t:20}; }
+    if(source.base.rots){ applyStatus(player,'rot',20); }   /* through applyStatus, so Iron Constitution halves it (2026-09-22) */
   }
   return d;
 };
@@ -237,7 +237,7 @@ aiAct = function(e){
       }
       if(d<=3 && fleeStep(e)){ e.t+=actCost(e); return; }
       e.boltCd=(e.boltCd||0)-1;
-      if(d<=5 && e.boltCd<=0){
+      if(d<=5 && e.boltCd<=0 && clearShot(e,player)){   /* 2026-09-22: no grave bolt through its own skeletons */
         e.boltCd=3; setClip(e,'attack'); boltFx(e.x,e.y,player.x,player.y,'dark');
         if(rng()<hostileHitChance(hitChance(b.acc+8, player.eva))){ var gd=applyDamage(player, roll(3,6)+Math.floor(floorNo/2), 'dark', e); floatText(player.x,player.y,String(gd),'dark'); log('The <b>Necro-Acolyte</b>\'s grave bolt hits you: '+gd+'.','c-you'); if(player.hp<=0) kill(player,e); }
         else log('A grave bolt misses.','c-miss');
@@ -365,7 +365,7 @@ function mortyAct(e){
   var see=canSeePlayer(e), d=dist(e,player), hall=mortyHall(), rm=roomAt(player.x,player.y);
   if(e.state==='throne'){
     if(see && d<=8 && rm && rm===hall){
-      e.state='hunt'; e.turnN=0; log('<b>Morty the Mostly-Dead</b> adjusts his crown. "Ah! A visitor! Do stay. Forever, ideally."','c-you'); sfx('warchief-roar'); playMusic('boss');
+      e.state='hunt'; e.turnN=0; log('<b>Morty the Mostly-Dead</b> adjusts his crown. "Ah! A visitor! Do stay. Forever, ideally."','c-you'); sfx('morty-intro'); playMusic('boss');
       ents.forEach(function(o){ if(o.guard) o.state='hunt'; });
     }
     e.t+=actCost(e); return;
@@ -413,7 +413,8 @@ function mortyAct(e){
     setClip(e,'attack'); log('<b>Morty</b> points at the floor around you. "Hands, please!" Step off the marked stones.','c-you');
     e.t+=actCost(e); return;
   }
-  /* soul bolts at range, otherwise keep his distance */
+  /* soul bolts at range, otherwise keep his distance. 2026-09-22 (Justin): the boss may cast over his skeletons - the
+     clear-lane rule for shooters stops at the Necro-Acolyte */
   if(d>=2 && d<=7){
     setClip(e,'attack'); boltFx(e.x,e.y,player.x,player.y,'dark'); sfx('shaman-cast');
     if(rng()<hostileHitChance(hitChance(e.base.acc, player.eva))){ var sd=applyDamage(player, roll(6,10)+Math.floor(floorNo/2), 'dark', e); floatText(player.x,player.y,String(sd),'dark'); log('Morty\'s soul bolt hits you: '+sd+'.','c-you'); if(player.hp<=0) kill(player,e); }

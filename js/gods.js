@@ -20,13 +20,16 @@ function joinGod(id, startPiety){
   player.lastRank=godRank();
   derive(player); player.hotbar=null; updateUI();
 }
-function gainPiety(n, why){
+function gainPiety(n, why, opts){
   if(!player.god || n<=0) return;
   var g=GODS[player.god];
   // Amusement has its own event table; ordinary piety does not award it.
   n*=1+(player.race==='human'?.25:0)+(g.loves===player.race?.25:0)+(player.cls==='cleric'?.25:0);
   var before=godRank();
-  player.piety=(player.piety||0)+n; player.favor=Math.min(100,(player.favor||0)+n);
+  /* 2026-09-23 (Justin): piety grows 30% per biome so a follower who switched gods can catch up; favor never does */
+  var deep = typeof bidx==='function' ? Math.pow(1.3, Math.max(0, bidx())) : 1;
+  player.piety=(player.piety||0)+n*deep;
+  if(!(opts && opts.pietyOnly)) player.favor=Math.min(100,(player.favor||0)+n);   /* Grom's punches pay piety only (DESIGN 12, step 8a) */
   var after=godRank();
   if(after>before){
     log('<b>'+g.name+' is pleased.</b> Piety rank '+after+'.','c-kill'); sfx('piety-rank'); ringFx(player.x,player.y,g.color,3);
@@ -55,8 +58,9 @@ function godConductEquip(kind, data){
     if(kind==='off' && data && ((data.block>0 && itemKey(data)!=='holy') || data.weapon)) pietyViolation('you carrying a shield or blade', 15);
     if(kind==='armor' && data && data!==EMPTY_OFF) pietyViolation('you wearing real armor', 15);
   }
-  if(g==='glimmer' && data && data.enchant==='shadow') pietyViolation('shadow-touched gear', 15);
+  if((g==='glimmer'||g==='reginald') && data && data.enchant==='shadow') pietyViolation('shadow-touched gear', 15);
   if(g==='murk' && data && data.enchant==='light') pietyViolation('light-touched gear', 15);
+  if(g==='grumbok' && kind==='weapon' && data && typeof itemKey==='function' && itemKey(data)==='wand') pietyViolation('you taking up a wand', 15);   /* "no spells, wands or magic sigils" (2026-09-22 audit) */
   if(g==='vellum'){
     if(kind==='off' && data && data.block>0 && itemKey(data)!=='holy') pietyViolation('you carrying a shield', 15);
     if(kind==='armor' && data && (data.weight==='medium' || data.weight==='heavy')) pietyViolation('you wearing heavy armor', 15);
@@ -66,14 +70,22 @@ function godConductEquip(kind, data){
 function spellConduct(A){
   var g=player.god; if(!g) return;
   if(g==='grumbok') pietyViolation('you casting a spell', 15);
-  if(g==='glimmer' && A.el==='shadow') pietyViolation('shadow magic', 15);
+  if((g==='glimmer'||g==='reginald') && A.el==='shadow') pietyViolation('shadow magic', 15);
   if(g==='murk' && A.el==='light') pietyViolation('light magic', 15);
   if(g==='vellum'){
     player.castTurn=turn;
     player.manaSpent=(player.manaSpent||0)+costOf(A);
-    while(player.manaSpent>=25){ player.manaSpent-=25; gainPiety(1); }
+    while(player.manaSpent>=20){ player.manaSpent-=20; gainPiety(1); }   /* the card says 20 (2026-09-22 audit) */
     // Spell Echo repeats resolution in balance-rulings.js; it no longer refunds mana.
   }
+}
+/* 2026-09-23 (Justin): a spell of the element your god forbids will not come at all: no mana, no piety, no turn.
+   The outermost useAbility (balance-rulings.js) asks this before anything is spent; Sylla adds Fire in sylla.js. */
+function spellForbidden(A){
+  var g=player.god; if(!g || !A) return null;
+  if((g==='glimmer'||g==='reginald') && A.el==='shadow') return 'Shadow';
+  if(g==='murk' && A.el==='light') return 'Light';
+  return null;
 }
 function sigilConduct(use){
   var g=player.god; if(!g) return true;
@@ -97,14 +109,16 @@ function spendEssence(n){
 function godOnKill(e, by){
   var g=player.god; if(!g) return;
   var byPlayer = by===player, byAlly = by && by.ally, big = e.elite || e.base.elite || e.base.boss, r=godRank();
-  var aware = e.state!=='asleep' && !(e.st.stun) && !(e.st.frozen);
-  if(g==='grom'){ /* Grom earns piety on damaging unarmed hits, not kills. */ }
+  /* 2026-09-22 (Justin): Reginald's rule is no surprise attacks and no stealth kills. A stunned or frozen enemy was
+     awake and fighting; only a sleeping one is a stealth kill (a surprise attack already costs piety in attack()). */
+  var aware = e.state!=='asleep';
+  if(g==='grom'){ if(byPlayer && player.weapon && player.weapon.unarmed) gainPiety(2+(big?15:0)); }   /* 2026-09-23 audit: kills made unarmed pay, on top of the punch piety (DESIGN 12, step 8a) */
   else if(g==='grumbok'){ if(byPlayer||byAlly) gainPiety((e.base.spellcaster||e.base.el?5:2)+(big?15:0)); if(r>=3 && e.base.spellcaster && byPlayer){ var h=Math.round(player.maxhp*0.1); healPlayer(h); } }
   else if(g==='glimmer'){ if(byPlayer||byAlly) gainPiety((e.base.undead||e.base.shadowy?4:2)+(big?15:0)); }
   else if(g==='murk'){ if(byAlly && by.undeadServant) gainPiety(4+(big?15:0)); else if((byPlayer||byAlly) && !e.base.undead) gainPiety(2+(big?15:0));
     if((byPlayer || (byAlly && by.undeadServant)) && e.foe && !e.base.undead && r>0){ healPlayer(2*r); } }
   else if(g==='reginald'){ if(byPlayer && aware) gainPiety(2+(big?15:0)); }
-  else if(g==='vellum'){ if(byPlayer) gainPiety((player.castTurn===turn?2:0)+(big?15:0)); }
+  else if(g==='vellum'){ if(byPlayer && player.castTurn===turn) gainPiety(2+(big?15:0)); }   /* 2026-09-23 audit: the elite bonus needs a spell kill too (DESIGN 6.5) */
   else if(g==='wobbles'){ gainPiety(big?15:2); }
 }
 function godTick(seesFoe){
@@ -168,7 +182,7 @@ function usePrayer(pid){
   else if(pid==='sanctuary'){ ents.forEach(function(e){ if(e.foe && dist(e,player)<=5) applyStatus(e,'fear',4); }); sparkleFx(player.x,player.y,'light',50); log('Sanctuary: nothing dares approach.','c-good'); }
   else if(pid==='unholyaura'){ player.st.aura={t:8}; sparkleFx(player.x,player.y,'dark',40); log('An unholy aura seeps from you.','c-good'); }
   else if(pid==='corpsefeast'){ var h2=Math.round(player.maxhp*0.3*div); healPlayer(h2); ents.forEach(function(e){ if(e.ally) e.hp=e.maxhp; }); floatText(player.x,player.y,'+'+h2,'heal'); log('Corpse Feast: you and your dead are restored.','c-good'); }
-  else if(pid==='laststand'){ player.buffs.laststand=10; log('Last Stand: you take 35% less damage.','c-good'); }
+  else if(pid==='laststand'){ player.buffs.laststand=10; log('Last Stand: you take 50% less damage.','c-good'); }   /* 2026-09-23: the log said 35%; applyDamage halves */
   else if(pid==='rally'){ var h3=Math.round(player.maxhp*0.25*div); healPlayer(h3); clearBad(); player.buffs.rally=10; derive(player); floatText(player.x,player.y,'+'+h3,'heal'); log('Rally!','c-good'); }
   else if(pid==='offering'){ var atShrine = at(player.x,player.y-1)===SHRINE||at(player.x,player.y+1)===SHRINE||at(player.x-1,player.y)===SHRINE||at(player.x+1,player.y)===SHRINE;
     gainPiety(Math.max(atShrine?20:10, Math.round((P.essence||0)/(atShrine?5:10)))); log('Old Anvil accepts your offering'+(atShrine?' gladly at his shrine':'')+'.','c-good'); sfx('forge-open'); }
@@ -197,7 +211,7 @@ function openShrine(){
   var mine = player.god===id, refused = typeof godRefuses==='function' ? godRefuses(id) : (g.refuses && player.race===g.refuses);
   var art = '<div class="shrine-art" data-art="'+g.sprite+'"></div>';
   var html = '<div class="shrine">'+art+'<div><h3 style="color:'+g.color+'">'+g.name+'</h3><div class="who">'+cap(g.title)+'</div>'+
-    '<p><b>Rule.</b> '+g.rule+'</p><p><b>Piety comes from:</b> '+g.gain+'</p>'+
+    '<p><b>Rule.</b> '+g.rule+'</p><p><b>Piety comes from:</b> '+g.gain+' Piety earned deeper is worth more: x1.3 per biome below the first. Favor is not multiplied.</p>'+
     shrineGifts(id, g, mine)+
     '<p><b>Invoke</b> (Clerics only): <b>'+ABILITIES[g.invoke].name+'</b> &mdash; '+ABILITIES[g.invoke].desc.replace(/^Invoke \([^)]*\): /,'')+'</p></div></div>';
   var buttons=[];
@@ -214,7 +228,7 @@ function openShrine(){
   }
   if(!mine && !floorMeta.shrineTithed) buttons.push({label:'Tithe 20 essence for a blessing', disabled:player.essence<20, fn:function(){
     spendEssence(20); floorMeta.shrineTithed=true; player.blessed=120; player.buffs.rally=40; derive(player);
-    log('The shrine blesses you: +10 accuracy for a while.','c-good'); sfx('pray'); closeModal(); updateUI(); }});
+    log('The shrine blesses you: +10% damage for a while.','c-good'); sfx('pray'); closeModal(); updateUI(); }});
   buttons.push({label:'Leave', fn:closeModal});
   openModal('Shrine', html, buttons);
   var holder=document.querySelector('.shrine-art'); if(holder) paintArt(holder, 'structures', g.sprite, 120);
@@ -242,7 +256,8 @@ function faithHTML(){
     '<div class="fmeter"><span>Rank '+r+'</span><span class="meter"><i style="width:'+pct+'%;background:linear-gradient(90deg,'+hexA(g.color,0.55)+','+g.color+')"></i></span><span>'+(next?pct+'% to rank '+(r+1):'max rank')+'</span></div>'+
     '<div class="fmeter"><span>Favor</span><span class="meter"><i style="width:'+Math.round(player.favor||0)+'%;background:linear-gradient(90deg,#6B5A22,#E8D27A)"></i></span><span>'+Math.round(player.favor||0)+' / 100</span></div>';
   var BRf=godBoonRanks(g);
-  h+='<p><b>Rule.</b> '+g.rule+'</p><p><b>Piety from:</b> '+g.gain+'</p><p><b>Boons</b></p><ol class="boons">'+g.boons.map(function(b,i){ var br=BRf[i]||i+1; return br<=r ? '<li><b>Rank '+br+'.</b> '+b+'</li>' : ''; }).join('')+'</ol>'+
+  var deepMul = typeof bidx==='function' ? Math.pow(1.3, Math.max(0, bidx())) : 1;   /* 2026-09-23 (Justin): the Faith tab says what piety is worth here */
+  h+='<p><b>Rule.</b> '+g.rule+'</p><p><b>Piety from:</b> '+g.gain+'</p><p><b>Depth.</b> Piety earned here is worth x'+deepMul.toFixed(2)+' (x1.3 per biome below the first). Favor is not multiplied.</p><p><b>Boons</b></p><ol class="boons">'+g.boons.map(function(b,i){ var br=BRf[i]||i+1; return br<=r ? '<li><b>Rank '+br+'.</b> '+b+'</li>' : ''; }).join('')+'</ol>'+
      (g.boons.some(function(b,i){ return (BRf[i]||i+1)>r; }) ? '<p class="c-info" style="font-size:11px">Grow in piety to learn what else '+g.name.split(',')[0]+' grants.</p>' : '')+'<p><b>Prayers</b></p>';
   var shown=0;
   g.prayers.forEach(function(pid){ var P=PRAYERS[pid], ok=canPray(pid); if(godRank()<P.rank) return; shown++;

@@ -25,6 +25,17 @@ var PACK_PLANE = {};
 ['rune-stone-light','rune-stone-shadow','rune-stone-earth','stalagmite-light','stalagmite-shadow','stalagmite-earth','crystal-gold','crystal-violet',
  'crystal-amber','crystal-gold-small','crystal-violet-small','crystal-amber-small','sun-dais','stepping-stone','mossy-boulder','fern','root-tangle',
  'glow-mushrooms'].forEach(function(n){ PACK_PLANE[n]=1; });
+/* 2026-09-23 (Justin: the central pedestals had animated high-quality sprites made on 09-22, yet the fire plane still
+   showed the small one): the three centrepieces are plane-pack pieces too, so packNameFor routes them into packDraw
+   and the 256px frames on map-planeset-anim.png show. Until now nothing sent them there and the map drew their
+   62px props-grid cells. */
+['lava-fountain','signature-water','signature-air'].forEach(function(n){ PACK_PLANE[n]=1; });
+/* 2026-09-23 (Justin: "you missed this one too", the fire rune stone): the packet-04 fire, water and air pieces are
+   plane-pack pieces like their light, shadow and earth kin. The 64px props grid only holds a shrunken copy of the
+   128px rune stones, the 64x128 stalagmites and the 64x96 crystals; the flat slag and scatter clusters are 64px
+   native and keep their route. */
+['rune-stone-fire','rune-stone-water','rune-stone-air','stalagmite-fire','stalagmite-water','stalagmite-air',
+ 'crystal-fire','crystal-water','crystal-air','crystal-fire-small','crystal-water-small','crystal-air-small'].forEach(function(n){ PACK_PLANE[n]=1; });
 
 /* the walkable clusters and wall pieces */
 ['candles-1','candles-2','candles-3','candles-4','grave-flowers-moss-1','grave-flowers-moss-2','grave-flowers-moss-3','grave-flowers-moss-4','wall-cobweb']
@@ -35,8 +46,24 @@ PROPS['wall-plaque']={b:1}; PROPS['wall-niche']=PROPS['wall-niche']||{b:1};
 function packCryptOn(){ return typeof inCrypt==='function' && inCrypt() && !(floorMeta && floorMeta.plane); }
 function packPlaneOn(){ return !!(floorMeta && floorMeta.plane) && typeof ptMat==='function' && !!ptMat(); }
 
+/* ---------------------------------------------------------------- the animated centrepieces (2026-09-22, Justin)
+   The lava fountain, the giant clam and the wind shrine draw from map-planeset-anim.png: 256px pieces cut from the
+   masters with four PixelLab frames each after the source frame (tools/pack.py pack_plane_anim). Two sheet pixels
+   per art unit (res), so packDraw's placement is unchanged; the frame advances on the clock, one every 180 ms, and
+   holds on the source frame when motion is off. */
+var PLANE_ANIM_MS=180;
+function planeAnimFrame(name, n){
+  if(typeof ANIM!=='undefined' && ANIM.reduce) return 0;
+  var ph=0; for(var i=0;i<name.length;i++) ph=(ph*31+name.charCodeAt(i))&1023;
+  return Math.floor((performance.now()+ph*7)/PLANE_ANIM_MS) % n;
+}
 /* ---------------------------------------------------------------- art lookup: the full canvas, not just the trimmed box */
 function packArt(name){
+  var A=AS.map && AS.map.planeanim, an=A && A.items && A.items[name];
+  if(an){
+    var aimg=atl('map-planeset-anim.png');
+    if(aimg) return {img:aimg, sx:planeAnimFrame(name, an.frames||A.frames)*A.cell, sy:an.row*A.cell, sw:A.cell, sh:A.cell, fullW:A.cell/A.res, fullH:A.cell/A.res, ox:0, oy:0, nm:name, res:A.res};
+  }
   var g=AS.map && AS.map.set, sheet='map-set.png', b=g && g.items[name];
   if(!b || PACK_PLANE[name]){ g=AS.map && AS.map.planeset; sheet='map-planeset.png'; b=g && g.items[name]; }
   if(!b && PACK_CRYPT[name] && AS.map && AS.map.props && AS.map.props.items[name]){   /* a 64x64 Crypt prop lives in the props grid */
@@ -66,7 +93,7 @@ function packBottomPad(o){
     g.drawImage(o.img, o.sx, o.sy, o.sw, o.sh, 0, 0, o.sw, o.sh);
     var D=g.getImageData(0,0,o.sw,o.sh).data, lowest=-1;
     for(var y=o.sh-1; y>=0 && lowest<0; y--){ var n=0; for(var x=0;x<o.sw;x++) if(D[(y*o.sw+x)*4+3]>=140) n++; if(n>=3) lowest=y; }
-    pad = lowest<0 ? 0 : o.fullH - (o.oy + lowest + 1);
+    pad = lowest<0 ? 0 : o.fullH - (o.oy + (lowest + 1)/(o.res||1));
   }catch(e){ pad=0; }
   return (PACK_PAD[o.nm]=Math.max(0, pad));
 }
@@ -92,7 +119,9 @@ function packNameFor(p){
   return PACK_CRYPT[n] ? n : null;
 }
 /* the planes' wall formations: a crystal or a stalagmite of this plane for the big one, small crystals beside it */
-var PACK_PLANE_KIT = {light:['crystal-gold','crystal-gold-small','stalagmite-light'], shadow:['crystal-violet','crystal-violet-small','stalagmite-shadow'], earth:['crystal-amber','crystal-amber-small','stalagmite-earth']};
+var PACK_PLANE_KIT = {light:['crystal-gold','crystal-gold-small','stalagmite-light'], shadow:['crystal-violet','crystal-violet-small','stalagmite-shadow'], earth:['crystal-amber','crystal-amber-small','stalagmite-earth'],
+                      /* 2026-09-23: packet 04's crystals and chimneys stand in the fire, water and air wall clusters too */
+                      fire:['crystal-fire','crystal-fire-small','stalagmite-fire'], water:['crystal-water','crystal-water-small','stalagmite-water'], air:['crystal-air','crystal-air-small','stalagmite-air']};
 function packPlaneCluster(p){
   var K=PACK_PLANE_KIT[floorMeta.plane]; if(!K) return null;
   if((p.size||1)<1) return K[1];
@@ -102,7 +131,7 @@ function packPlaneCluster(p){
 /* ---------------------------------------------------------------- drawing at natural size */
 function packDraw(p, name, alpha){
   var o=packArt(name); if(!o) return false;
-  var s=TS/64, w=p.w||1, h=p.h||1, fw=o.fullW*s, fh=o.fullH*s;
+  var s=TS/64, res=o.res||1, w=p.w||1, h=p.h||1, fw=o.fullW*s, fh=o.fullH*s;
   var left=(p.x-camX)*TS + (w*TS-fw)/2, bottom=(p.y-camY+h)*TS;
   var flip=false, flat=!!p.flat || !p.b;
   if(name==='wall-cobweb'){ flip=!!p.webLeft; }
@@ -110,7 +139,7 @@ function packDraw(p, name, alpha){
   if(p.name==='pt-cluster' && p.wallDir) left+=p.wallDir[0]*TS*0.28;       /* leans into the wall it grows from */
   bottom += packBottomPad(o)*s;
   if(p.wall) bottom=(p.y-camY+1)*TS + packBottomPad(o)*s;                   /* set into the wall face, on the floor line */
-  var dx=Math.round(left+o.ox*s), dy=Math.round(bottom-fh+o.oy*s), dw=Math.round(o.sw*s), dh=Math.round(o.sh*s);
+  var dx=Math.round(left+o.ox*s), dy=Math.round(bottom-fh+o.oy*s), dw=Math.round(o.sw*s/res), dh=Math.round(o.sh*s/res);
   ctx.save(); ctx.globalAlpha=alpha; ctx.imageSmoothingEnabled=false;
   /* 2026-09-20: Justin - "the stepping stones need to be integrated into the floor somehow". A stone in a pool is
      half in the water: no contact shadow, a dark wet halo where it breaks the surface, a bright waterline on its
@@ -243,12 +272,29 @@ if(_ptSparklePack) ptSparkle = function(p, X, Y, W, H, alpha){ if(p.name==='pt-c
    converted props (barrels to urns, the dungeon's bone scatter) slip through. */
 function packLight(x, y, col, r, s){ floorMeta.planeLights=floorMeta.planeLights||[]; floorMeta.planeLights.push({x:x, y:y, col:col, r:r, s:s}); }
 function packWallAt(x, y){ return inb(x,y) && isWallLike(at(x,y)) && at(x,y)!==DOOR; }
+/* 2026-09-22 (Justin): fix it at the source as well. Whenever a tile that held a wall-mounted piece stops being a
+   wall (a corridor carved after decoration, a door cut, a dead end opened), the piece and its light go with it,
+   and a Caverns wall feature drawn on that tile is dropped. The repair below stays for floors saved before this. */
+var _setTWallPieces = setT;
+setT = function(x, y, v){
+  _setTWallPieces(x, y, v);
+  if(typeof isWallLike==='function' && isWallLike(v)) return;
+  if(typeof props!=='undefined' && props.length){
+    for(var i=props.length-1; i>=0; i--){ var p=props[i]; if(p.wall && p.b && p.x===x && p.y===y){
+      props.splice(i,1);
+      if(floorMeta && floorMeta.planeLights) floorMeta.planeLights=floorMeta.planeLights.filter(function(l){ return !(l.x===x && Math.abs(l.y-(y+.9))<.001); });
+    } }
+  }
+  if(floorMeta && floorMeta.caveDeco && floorMeta.caveDeco.walls) floorMeta.caveDeco.walls=floorMeta.caveDeco.walls.filter(function(w){ return !(w.x===x && w.y===y); });
+};
 /* Corridors carved after room decoration can leave a wall memorial on floor.
    Repair deterministically, including old saves, without moving gameplay objects. */
 function repairWallMemorials(){
   var changed=false;
   props.slice().forEach(function(p){
-    if(!p.wall || !/^(wall-plaque|wall-niche)$/.test(p.name) || isWallLike(at(p.x,p.y)))return;
+    /* 2026-09-22 (Justin): a silk banner in the Underdark blocked the only passage. Every wall-mounted piece that
+       blocks (plaques, niches, banners, web corners) is repaired the same way, not only the Crypt's two. */
+    if(!p.wall || !p.b || isWallLike(at(p.x,p.y)))return;
     var ox=p.x,oy=p.y,best=null,score=Infinity;
     for(var dy=-2;dy<=2;dy++)for(var dx=-2;dx<=2;dx++){
       var x=ox+dx,y=oy+dy,d=Math.abs(dx)+Math.abs(dy);

@@ -10,6 +10,16 @@ var T1_TEXT = {
   light:'10% chance per point that your hits Smite: 3-6 light damage, +1 per Light point',
   shadow:'+5% crit chance per point against enemies that can\'t see you'
 };
+/* 2026-09-23 (Justin): the sheet's element lines show the live total at the current affinity, not only the rate */
+var T1_LIVE = {
+  fire:   function(n){ return '+'+n+' fire damage on every hit (1 per point)'; },
+  water:  function(n){ return 'Ice Armor: absorbs '+(3*n)+' damage (3 per point), recharges out of combat'; },
+  air:    function(n){ return '+'+(10*n)+'% movement speed (10% per point)'; },
+  earth:  function(n){ return 'Stone Skin: -'+n+' physical damage per hit (1 per point)'; },
+  light:  function(n){ return (10*n)+'% chance that your hits Smite: '+(3+n)+'-'+(6+n)+' light damage (10% and +1 per point)'; },
+  shadow: function(n){ return '+'+(5*n)+'% crit chance against enemies that can\'t see you (5% per point)'; }
+};
+function t1Text(e, n){ return (T1_LIVE[e] && n>0) ? T1_LIVE[e](n) : (T1_TEXT[e]||''); }
 var ENCHANT_TEXT = {
   weapon:{fire:'10% of each hit as fire (+3% per Fire point); 5% Burning chance per Fire point', water:'15% chance to Chill (+5% per Water point)',
           air:'5% chance per Air point (min 5%) of an instant extra attack', earth:'15% chance to Root (grows with Earth)',
@@ -33,16 +43,16 @@ function fuseCheck(el){
 }
 function fuseMote(el){
   var why=fuseCheck(el); if(why){ log(why,'c-info'); sfx('ui-error'); return; }
-  if(player.god==='glimmer' && el==='shadow') pietyViolation('you taking Shadow into yourself', 30);
+  if((player.god==='glimmer'||player.god==='reginald') && el==='shadow') pietyViolation('you taking Shadow into yourself', 30);
   if(player.god==='murk' && el==='light') pietyViolation('you taking Light into yourself', 30);
   player.motes[el]--; if(player.motes[el]<=0) delete player.motes[el];
   if(!Object.keys(player.aff).length) player.primary=el;
   player.aff[el]=(player.aff[el]||0)+1;
   var before=player.abilities.slice();
   derive(player); player.iceArmor=player.iceArmorMax;
-  log('The Forge burns the mote into you. <b>'+cap(el)+' '+player.aff[el]+'</b>: '+T1_TEXT[el]+'.','c-kill');
+  log('The Forge burns the mote into you. <b>'+cap(el)+' '+player.aff[el]+'</b>: '+t1Text(el, player.aff[el])+'.','c-kill');
   sfx('forge-fuse'); sparkleFx(player.x,player.y,TRAIL_EL(el),50); ringFx(player.x,player.y,AFF_COL[el],3);
-  player.abilities.forEach(function(k){ if(before.indexOf(k)<0){ log('<b>New spell: '+ABILITIES[k].name+'</b> &mdash; '+ABILITIES[k].desc,'c-kill'); sfx('new-ability'); } });
+  player.abilities.forEach(function(k){ if(before.indexOf(k)<0){ log('<b>New spell: '+ABILITIES[k].name+'</b> &mdash; '+(typeof liveDesc==='function' ? liveDesc(ABILITIES[k]) : ABILITIES[k].desc),'c-kill'); sfx('new-ability'); } });
   player.hotbar=null; updateUI(); renderForge();
 }
 function enchantItem(slot, el){
@@ -95,7 +105,7 @@ function renderForge(){
     h+='<p class="c-info">Burn a mote into yourself for a point of affinity. Two elements at most, never opposites, and the second can never outgrow the first. Permanent.</p>';
     ELEMENTS.forEach(function(el){
       var why=fuseCheck(el), cur=player.aff[el]||0, nextT=cur+1;
-      var unlock = nextT===1 ? T1_TEXT[el] : nextT===2 ? 'Tier 2 spell: '+ABILITIES[ELEMENT_ABILS[el][2]].name+' &mdash; '+ABILITIES[ELEMENT_ABILS[el][2]].desc : 'Tier '+nextT+' (a later biome)';
+      var unlock = nextT===1 ? t1Text(el, 1) : nextT===2 ? 'Tier 2 spell: '+ABILITIES[ELEMENT_ABILS[el][2]].name+' &mdash; '+ABILITIES[ELEMENT_ABILS[el][2]].desc : 'Tier '+nextT+' (a later biome)';
       h+='<div class="frow"><span class="dot" style="background:'+AFF_COL[el]+'"></span><div class="ftext"><b>'+cap(el)+' '+cur+' &rarr; '+nextT+'</b><div class="d">'+unlock+'</div>'+
          (why?'<div class="d c-you">'+why+'</div>':'')+'</div><button data-fuse="'+el+'" '+(why?'disabled':'')+'>Fuse</button></div>';
     });
@@ -114,7 +124,7 @@ function renderForge(){
       h+='</div>';
     });
   } else {
-    h+='<p class="c-info">Carve motes into sigils. Crafted sigils are always identified. The carving costs essence as well as motes: 100 for one mote, 200 for two, 500 for Ascension, 1000 for Wisdom.</p>';
+    h+='<p class="c-info">Carve motes into sigils. Crafted sigils are always identified. The carving costs essence as well as motes: 100 for one mote, 200 for two, 500 for Ascension, 5000 for Wisdom.</p>';
     Object.keys(SIGILS).forEach(function(k){
       var s=SIGILS[k], need={}, ok=true; s.motes.forEach(function(m){ need[m]=(need[m]||0)+1; });
       for(var m in need) if((player.motes[m]||0)<need[m]) ok=false;

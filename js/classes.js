@@ -10,8 +10,8 @@
 var FIGHTER_NO_BLOCK = true;   /* Shield Training is gone; tiers.js reads this */
 
 /* ---------------------------------------------------------------- tables */
-CLASSES.fighter.passive = 'Guard: a shield of overhealth (5 + half your level) that refills out of combat.';
-CLASSES.cleric.passive  = 'Starts sworn to a god (rank 1, 20 piety). Gains piety 25% faster, and Invoke costs 1 less mana per piety rank.';
+CLASSES.fighter.passive = 'Guard: a shield of overhealth (12% of your max HP) that refills out of combat.';
+CLASSES.cleric.passive  = 'Starts sworn to a god (rank 1, 20 piety). Gains piety 25% faster.';
 CLASSES.mage.passive    = 'Deep Reserves: +30% max mana.';
 CLASSES.mage.blurb      = 'A staff and a robe. Magic Missile always hits, and can carry your elements’ effects.';
 CLASSES.mage.kit        = {main:'staff', alt:null, armor:'robe', off:null};
@@ -48,7 +48,7 @@ ABILITIES.sap.cost = 7;
 ABILITIES.sap.range = 2; delete ABILITIES.sap.useWeaponRange;
 ABILITIES.sap.desc = 'Range 2: knocks the target out for 3 turns (6 if it was unaware). The hit that wakes it is a surprise critical. A target can only be Sapped once; other Stuns still work.';
 ABILITIES.double.desc = 'An attack: two weapon hits on an adjacent enemy for the time of one attack.';
-ABILITIES.missile.desc = 'Always hits; magic damage nothing resists. +1 base damage per affinity point. For each element you hold, a 25% chance (+5% per point) to add its effect: Burning, Chill, an arc, Root, Blind or Fear.';
+ABILITIES.missile.desc = 'Always hits; magic damage nothing resists. +1 base damage per affinity point.';
 ABILITIES.shadowstep = {name:'Shadowstep', cost:0, cd:15, kind:'self', tech:true, icon:'ic-shadowstep', desc:'With no enemy next to you, slip into hiding for 3 turns; hunting enemies lose you. 15-turn cooldown.'};
 ['firebolt','frostshard','spark','root','smite','shadowbolt'].forEach(function(k){ ABILITIES[k].cost=20; ABILITIES[k].base=[14,22]; });
 
@@ -98,6 +98,7 @@ derive = function(p){
   if(p.guard===undefined) p.guard=p.guardMax;
   p.guard=Math.min(p.guard, p.guardMax);
   if(p.cls==='scoundrel' && p.abilities.indexOf('shadowstep')<0) p.abilities.splice(1, 0, 'shadowstep');
+  if(p.cls==='fighter' && p.abilities.indexOf('charge')<0) p.abilities.splice(1, 0, 'charge');
 };
 var _playerShieldCls = playerShield;
 playerShield = function(){ return _playerShieldCls() + Math.max(0, Math.floor(player.guard||0)); };
@@ -107,7 +108,7 @@ playerShield = function(){ return _playerShieldCls() + Math.max(0, Math.floor(pl
    piety grows - it gets stronger. Saint Glimmer's Heal already scales (+5% a rank, combat.js castSelf) and
    Sylla's Into the Dark does the same; that is what rank buys. */
 var _gainPietyCls = gainPiety;
-gainPiety = function(n, why){ return _gainPietyCls(n, why); };
+gainPiety = function(n, why){ return _gainPietyCls.apply(this, arguments); };
 
 /* Experience curve (level cap 20). The former 1.55 growth stranded a full-clear
    floor-18 character at level 12. Growth 1.267 mapped that same lifetime XP to
@@ -170,8 +171,60 @@ abilityBar = function(){
   if(!player || !player.hotbar || !$('hotbar')) return;
   $('hotbar').querySelectorAll('.slot[data-i]').forEach(function(b){
     var s=player.hotbar[+b.getAttribute('data-i')];
-    if(s && s.key==='shadowstep'){ var c=b.querySelector('.c'), left=cdLeft('shadowstep'); if(c) c.textContent = left ? left+' turns' : 'ready'; if(left) b.style.opacity='0.6'; }
+    if(s && s.type==='ability' && ABILITIES[s.key] && ABILITIES[s.key].cd){ var c=b.querySelector('.c'), left=cdLeft(s.key); if(c) c.textContent = left ? left+' turns' : 'ready'; if(left) b.style.opacity='0.6'; }
   });
+};
+
+/* ---------------------------------------------------------------- Charge (2026-09-22)
+   Justin: warriors need a charge - in an open space anything ranged just kites them forever, and there has to be a
+   reason to play a Fighter over a Cleric. The Fighter rushes up to five tiles in a straight line at an enemy, the
+   blow cannot miss, and every enemy next to where they land is stunned for two turns. No mana; a 20-turn cooldown.
+   The run has to be a clear straight line (boltPath's, the same line an arrow flies) over walkable, empty tiles. */
+ABILITIES.charge = {name:'Charge', cost:0, cd:20, kind:'charge', range:6, tech:true, icon:'ic-charge',
+  desc:'Rush up to 5 tiles in a straight line, at an enemy or to open ground. A blow on the target cannot miss, and every enemy next to you where you land is stunned for 2 turns. 20-turn cooldown.'};
+function chargeLane(f, ground){
+  /* Justin, 2026-09-22: Charge also targets open ground, so a warrior can break away from a crowd. */
+  var path=boltPath(player.x,player.y,f.x,f.y), end=path[path.length-1];
+  if(!end || end.x!==f.x || end.y!==f.y) return null;                 /* something stands in the line */
+  var run=ground ? path : path.slice(0,-1);                           /* to the tile itself, or every tile short of the enemy */
+  if(run.length>ABILITIES.charge.range-1) return null;
+  for(var i=0;i<run.length;i++){ var t=run[i]; if(!walkable(t.x,t.y) || occupied(t.x,t.y)) return null; }
+  return run;
+}
+var _useAbilityCharge = useAbility;
+useAbility = function(i){
+  var key=player.abilities[i];
+  if(key!=='charge') return _useAbilityCharge(i);
+  if(cdLeft(key)>0){ log('Charge is not ready ('+cdLeft(key)+' turns).','c-info'); sfx('ui-error'); return; }
+  if(player.st.root || player.st.frozen){ log('You cannot charge while held fast.','c-info'); sfx('ui-error'); return; }
+  if(aiming && aiming.i===i){ cancelAim(); return; }
+  aiming={i:i, A:ABILITIES.charge};
+  log('<b>Charge</b> &mdash; click an enemy, or open ground, within 5 tiles in a straight line; Esc cancels.','c-info');
+  abilityBar(); draw();
+};
+var _inRangeCharge = inRange;
+inRange = function(x,y){
+  if(aiming && aiming.A.kind==='charge') return dist(player,{x:x,y:y})<=ABILITIES.charge.range && inb(x,y) && (revealAll || vis[idxOf(x,y)]);
+  return _inRangeCharge(x,y);
+};
+var _castAtCharge = castAt;
+castAt = function(x,y){
+  if(!aiming || aiming.A.kind!=='charge') return _castAtCharge(x,y);
+  var f=ents.filter(function(e){ return e.foe && e.hp>0 && e.x===x && e.y===y; })[0];
+  if(!inRange(x,y)){ log('Too far to charge.','c-info'); sfx('ui-error'); return false; }
+  if(!f && (x===player.x && y===player.y || !walkable(x,y) || occupied(x,y))){ log('Charge at an enemy or onto open ground.','c-info'); sfx('ui-error'); return false; }
+  if(!f && dist(player,{x:x,y:y})>ABILITIES.charge.range-1){ log('Too far to charge.','c-info'); sfx('ui-error'); return false; }
+  var run=chargeLane(f||{x:x,y:y}, !f);
+  if(!run){ log(f ? 'No clear straight run at the '+f.name+'.' : 'No clear straight run to that tile.','c-info'); sfx('ui-error'); return false; }
+  aiming=null; player.cds=player.cds||{}; player.cds.charge=turn+ABILITIES.charge.cd;
+  var from={x:player.x,y:player.y};
+  if(run.length){ var stop=run[run.length-1]; player.x=stop.x; player.y=stop.y; if(typeof computeFOV==='function') computeFOV(); }
+  if(typeof faceOf==='function'){ var cf=faceOf(x-from.x, y-from.y); if(cf) player.face=cf; }
+  sfx('charge'); if(typeof SHAKE!=='undefined') SHAKE=5; if(typeof ringFx==='function') ringFx(player.x,player.y,'#E8B44A',1.6);
+  if(f){ player._sureHit=true; try{ attack(player, f, 1, 'Charge'); } finally{ player._sureHit=false; } }
+  var stunned=0; ents.forEach(function(e){ if(e.foe && e.hp>0 && dist(e,player)<=1){ applyStatus(e,'stun',2); stunned++; } });
+  log('<b>Charge!</b>'+(stunned ? ' Everything around you reels.' : f ? '' : ' You break away.'),'c-good');
+  player.hidden=0; endTurn(); return true;
 };
 
 /* ---------------------------------------------------------------- Double Strike is one attack action */
@@ -228,6 +281,7 @@ applyDamage = function(target, amount, type, source){
 /* ---------------------------------------------------------------- stealth: everyone has a stealth score */
 function stealthScore(){
   if(!player || player.noisy) return 0;
+  if(typeof hasGod==='function' && hasGod('reginald')) return 0;   /* 2026-09-22 (Justin): the Unsneaky cannot sneak; not written on any card */
   var s=0.02*Math.max(0, player.stats.agi-10);
   if(isScoundrel()) s+=0.25;
   if(!player.movedLast) s+=0.20;

@@ -79,7 +79,7 @@ function blitTile(o, px, py, alpha){
 function lightingOn(){ try { return localStorage.getItem('astra-temple-light')!=='off'; } catch(e){ return true; } }
 
 /* the colour behind each condition's icon: light where the art is dark, deep where the art is pale */
-var STATUS_CHIP = {burn:'#FFC27A', chill:'#BFE4F0', frozen:'#DCF2FF', root:'#C8E0A0', stun:'#FFE9A8', fear:'#C8B4E0',
+var STATUS_CHIP = {challenged:'#E8B44A', coward:'#E8B44A', burn:'#FFC27A', chill:'#BFE4F0', frozen:'#DCF2FF', root:'#C8E0A0', stun:'#FFE9A8', fear:'#C8B4E0',
                    blind:'#FFFFFF', poison:'#C6E39A', web:'#E4DCF0', slow:'#E4DCF0', bleed:'#F0B0B0'};
 
 /* ---- terrain choices ---- */
@@ -250,9 +250,13 @@ function drawTrap(f, px, py, alpha, now){
   var t = ANIM.reduce ? 0 : now/1000, H=function(k){ return grassHash(f.x,f.y,k); };
   var cx=px+TS/2, cy=py+TS/2, u=TS/32;              /* u: one pixel of a 32px tile */
   var P=function(x,y,w,h,c){ ctx.fillStyle=c; ctx.fillRect(Math.round(px+x*u), Math.round(py+y*u), Math.ceil(w*u), Math.ceil(h*u)); };
+  /* 2026-09-22 (Justin): a trap under a prop (a gas vent under a brazier) drew its sunken plate as a dark box around
+     the prop's feet. Under a prop only the glow and what leaks out are drawn; the plate and grate stay hidden. */
+  var covered = typeof propAt==='function' && !!propAt(f.x,f.y);
   ctx.save(); ctx.globalAlpha=alpha;
   /* a sunken stone plate: dark seam, lit lower-right lip, flat face */
   function plate(face, x0, y0, w, h){
+    if(covered) return;
     P(x0-1, y0-1, w+2, h+2, 'rgba(8,6,6,.75)');
     P(x0, y0, w, h, face);
     P(x0, y0, w, 1, 'rgba(0,0,0,.35)'); P(x0, y0, 1, h, 'rgba(0,0,0,.35)');
@@ -265,12 +269,12 @@ function drawTrap(f, px, py, alpha, now){
   var k=f.kind, pulse=0.5+0.5*Math.sin(t*2.4 + f.x + f.y*1.7);
   if(k==='dart'){
     plate('#4A4540', 8, 8, 16, 16);
-    for(var i=0;i<3;i++) for(var j=0;j<3;j++){ P(10+i*5, 10+j*5, 2, 2, '#15110F'); P(10+i*5, 12+j*5, 2, 1, 'rgba(255,255,255,.08)'); }
+    if(!covered) for(var i=0;i<3;i++) for(var j=0;j<3;j++){ P(10+i*5, 10+j*5, 2, 2, '#15110F'); P(10+i*5, 12+j*5, 2, 1, 'rgba(255,255,255,.08)'); }
   } else if(k==='fire' || k==='gas' || k==='frost'){
     /* an iron vent grate; what leaks out tells you which */
     var col = k==='fire' ? '#FF7A30' : k==='gas' ? '#7FC05A' : '#9FD8FF';
     plate('#2E2A28', 8, 9, 16, 14);
-    for(var b=0;b<4;b++) P(10+b*4, 11, 2, 10, '#5A534C');
+    if(!covered) for(var b=0;b<4;b++) P(10+b*4, 11, 2, 10, '#5A534C');
     glowDot(16, 16, 9, col, 0.25+0.2*pulse);
     if(!ANIM.reduce) for(var w=0; w<3; w++){
       var ph=((t*0.6 + H(w)) % 1), wx=11+H(w+5)*10 + Math.sin(t*2+w)*1.5, wy=16 - ph*14;
@@ -278,7 +282,7 @@ function drawTrap(f, px, py, alpha, now){
     }
   } else if(k==='spark'){
     plate('#5C5A58', 7, 7, 18, 18);
-    P(9, 9, 14, 14, '#6E6B66');
+    if(!covered) P(9, 9, 14, 14, '#6E6B66');
     var sc = pulse>0.75 ? '#FFF1A8' : '#E8B44A';
     [[17,10],[15,13],[18,14],[14,18],[16,21]].forEach(function(q,i2,arr){ if(i2) { var a=arr[i2-1]; ctx.strokeStyle=sc; ctx.lineWidth=Math.max(1.5,1.6*u); ctx.beginPath(); ctx.moveTo(px+a[0]*u,py+a[1]*u); ctx.lineTo(px+q[0]*u,py+q[1]*u); ctx.stroke(); } });
     glowDot(16, 16, 8, '#E8B44A', 0.15+0.25*pulse);
@@ -403,6 +407,10 @@ function castSheet(look){ var m=AS.cast && AS.cast[look]; if(!m) return null; va
 function mobSheet(name){ var m=AS.mobs && AS.mobs[name]; if(!m) return null; var img=atl('mob-'+name+'.png'); return img ? {img:img, m:m} : null; }
 function clipFrame(sheet, e, sliding){
   var m=sheet.m, now=performance.now(), cell=m.cell;
+  /* 2026-09-23 (Justin: the Magma Crawler changed art between asleep and awake): a creature whose animation rows
+     drifted off its still (packet 04's fire and water five, stillPose in planesfwa.js) holds the still in every
+     state, mid-clip included, until it is re-animated on model. */
+  if(e.base && e.base.stillPose && m.static_row!==undefined) return {sx:0, sy:m.static_row*cell};
   if(e._clip){
     var c=m.clips[e._clip.name];
     if(c){
@@ -445,7 +453,7 @@ function drawCharacter(e, px, py, opts){
     var dx2=px+TS/2-(box[0]+box[2]/2)*s2, dy2=py+TS*0.97-feet*s2;
     /* Tier-two reference art has a single pose: give it a restrained breath,
        attack compression and recoil without altering simulation state. */
-    if(e.base.elementTier && !ANIM.reduce && e.state!=='asleep'){
+    if((e.base.elementTier || e.base.stillPose) && !ANIM.reduce && e.state!=='asleep'){
       var msNow=performance.now(), age2=e._clip?msNow-e._clip.t0:9999;
       var action2=e._clip&&e._clip.name==='attack'&&age2>=0&&age2<540?Math.sin(age2/540*Math.PI):0;
       var pulse2=Math.sin(msNow/330+(e.id||0))*.012;
@@ -892,29 +900,6 @@ function draw(){
     drawTrap(f, fpx, fpy, fa, now);
   });
   drawTelegraphs(now);   /* boss attack markings sit on the floor, under whoever stands there */
-  /* items */
-  items.forEach(function(it){
-    if(!(revealAll||vis[idxOf(it.x,it.y)])) return;
-    var ipx=(it.x-camX)*TS, ipy=(it.y-camY)*TS, ia=(revealAll||vis[idxOf(it.x,it.y)])?1:memA(0.45);
-    var bob = ANIM.reduce ? 0 : Math.sin(now/400 + it.x*2 + it.y)*TS*0.03;
-    if(it.kind==='key'){
-      /* 2026-09-17: a key on a stone floor was almost impossible to spot, and missing one locks the vault
-         for the rest of the floor. It sits in a blue glow that breathes. */
-      var kp = ANIM.reduce ? 1 : 0.75 + 0.25*Math.sin(now/420 + it.x + it.y);
-      var kc = it.key==='crystal' ? '160,230,255' : '120,190,255';
-      var kg = ctx.createRadialGradient(ipx+TS/2, ipy+TS*0.58, TS*0.05, ipx+TS/2, ipy+TS*0.58, TS*0.62);
-      kg.addColorStop(0, 'rgba('+kc+','+(0.55*kp*ia)+')');
-      kg.addColorStop(0.55, 'rgba('+kc+','+(0.18*kp*ia)+')');
-      kg.addColorStop(1, 'rgba('+kc+',0)');
-      ctx.fillStyle=kg; ctx.beginPath(); ctx.arc(ipx+TS/2, ipy+TS*0.58, TS*0.62, 0, 7); ctx.fill();
-      if(!ANIM.reduce && Math.random()<0.10) sparkleFx(it.x, it.y, 'ice', 1);
-    }
-    if(it.kind==='heart' || it.kind==='managlobe'){ drawGlobe(it, ipx, ipy+bob, ia, now); return; }
-    var o=spriteOn ? (objArt('items', itemArtName(it))) : null;
-    if(o) drawObj(o, ipx, ipy+TS*0.08+bob, {fit: ITEM_FIT[it.kind]||0.5, alpha:ia});
-    else { ctx.globalAlpha=ia; glyph(it.kind==='essence'?'\u2022':it.kind==='mote'?'\u25C6':it.kind==='food'?'%':it.kind==='sigil'?'?':it.kind==='armor'?'[':'/', ipx, ipy, it.kind==='mote'?AFF_COL[it.el]:'#E8B44A'); ctx.globalAlpha=1; }
-    if(it.kind==='mote' && !ANIM.reduce){ ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=0.18+0.08*Math.sin(now/200+it.x); ctx.fillStyle=AFF_COL[it.el]; ctx.beginPath(); ctx.arc(ipx+TS/2,ipy+TS*0.58,TS*0.2,0,7); ctx.fill(); ctx.restore(); }
-  });
   /* props */
   function paintProp(p){
     if(!(revealAll||seen[idxOf(p.x,p.y)])) return;
@@ -937,6 +922,31 @@ function draw(){
     else standing(p.y+(p.h||1),function(){paintProp(p);});
   });
 
+  /* items: after the flat props, so a pickup dropped on rubble, bones or moss lies on top of them rather than
+     under them (2026-09-22, Justin: a mana globe under a rock); standing props and creatures are deferred and
+     still cover it */
+  items.forEach(function(it){
+    if(!(revealAll||vis[idxOf(it.x,it.y)])) return;
+    var ipx=(it.x-camX)*TS, ipy=(it.y-camY)*TS, ia=(revealAll||vis[idxOf(it.x,it.y)])?1:memA(0.45);
+    var bob = ANIM.reduce ? 0 : Math.sin(now/400 + it.x*2 + it.y)*TS*0.03;
+    if(it.kind==='key'){
+      /* 2026-09-17: a key on a stone floor was almost impossible to spot, and missing one locks the vault
+         for the rest of the floor. It sits in a blue glow that breathes. */
+      var kp = ANIM.reduce ? 1 : 0.75 + 0.25*Math.sin(now/420 + it.x + it.y);
+      var kc = it.key==='crystal' ? '160,230,255' : '120,190,255';
+      var kg = ctx.createRadialGradient(ipx+TS/2, ipy+TS*0.58, TS*0.05, ipx+TS/2, ipy+TS*0.58, TS*0.62);
+      kg.addColorStop(0, 'rgba('+kc+','+(0.55*kp*ia)+')');
+      kg.addColorStop(0.55, 'rgba('+kc+','+(0.18*kp*ia)+')');
+      kg.addColorStop(1, 'rgba('+kc+',0)');
+      ctx.fillStyle=kg; ctx.beginPath(); ctx.arc(ipx+TS/2, ipy+TS*0.58, TS*0.62, 0, 7); ctx.fill();
+      if(!ANIM.reduce && Math.random()<0.10) sparkleFx(it.x, it.y, 'ice', 1);
+    }
+    if(it.kind==='heart' || it.kind==='managlobe'){ drawGlobe(it, ipx, ipy+bob, ia, now); return; }
+    var o=spriteOn ? (objArt('items', itemArtName(it))) : null;
+    if(o) drawObj(o, ipx, ipy+TS*0.08+bob, {fit: ITEM_FIT[it.kind]||0.5, alpha:ia});
+    else { ctx.globalAlpha=ia; glyph(it.kind==='essence'?'\u2022':it.kind==='mote'?'\u25C6':it.kind==='food'?'%':it.kind==='sigil'?'?':it.kind==='armor'?'[':'/', ipx, ipy, it.kind==='mote'?AFF_COL[it.el]:'#E8B44A'); ctx.globalAlpha=1; }
+    if(it.kind==='mote' && !ANIM.reduce){ ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=0.18+0.08*Math.sin(now/200+it.x); ctx.fillStyle=AFF_COL[it.el]; ctx.beginPath(); ctx.arc(ipx+TS/2,ipy+TS*0.58,TS*0.2,0,7); ctx.fill(); ctx.restore(); }
+  });
   /* fire on the ground */
   for(y=camY;y<=camY+viewH;y++) for(x=camX;x<=camX+viewW;x++){
     if(!inb(x,y) || !fireT[idxOf(x,y)] || !(revealAll||vis[idxOf(x,y)])) continue;
@@ -997,7 +1007,6 @@ function draw(){
       if(e.surprised && e.foe) { mark('!',px0+TS*0.78,py0+TS*0.02,'#FFD24A'); }
       if(e.state==='asleep') { mark('z',px0+TS*0.78,py0+TS*0.08+(ANIM.reduce?0:Math.sin(now/400+e.id)*2),'#CFE0FF'); }
       if(e.keyholder){ drawObj(objArt('items','item-key-iron'), px0+TS*0.52, py0-TS*0.34, {fit:0.4}); }
-      if(e.challenged){ mark('!',px0+TS*0.5,py0-TS*0.1,'#E8B44A'); }
       /* 2026-09-20: Justin - "we need some art for conditions and not just a black placeholder symbol". The icons
          were drawn straight onto the scene, so a dark one over a dark creature read as a black box. Each sits on a
          small chip of its own colour now, with a dark rim, so it reads against anything. */

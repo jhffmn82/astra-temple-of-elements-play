@@ -14,7 +14,7 @@ var AMULETS = {
   stillness:{name:'Amulet of Stillness',  kills:15,                    desc:'Freeze time for 3 turns. Moving is free; attacking or any other action breaks the stillness.'},
   echo:     {name:'Amulet of Echoes',     kills:10,                    desc:'Read the last sigil you used again, without using one up.'},
   thorns:   {name:'Amulet of Thorns',     kills:8,                    desc:'Root yourself for 5 turns: a shield of 35% of your max HP, and melee attackers take half of their damage back.'},
-  plenty:   {name:'Amulet of Plenty',     kills:20,                   desc:'Conjure a small ration at your feet.'}
+  plenty:   {name:'Amulet of Plenty',     kills:20,                   desc:'Conjure a ration at your feet.'}
 };
 var AMULET_LOOKS = ['sun','fang','eye','feather','skull','tear','star','knot','wheat'];
 
@@ -50,7 +50,7 @@ trinketCard = function(it){
     '<div class="row"><span>Charges</span><b>'+it.charges+' / '+AMULET_MAX_CHARGES+'</b></div>'+
     (it.charges<AMULET_MAX_CHARGES && !it.unid?'<div class="row"><span>Next charge</span><b>'+(amuletKillsNeeded(it)-(it.progress||0))+' more kills</b></div>':'')+
     (it.cursed && !it.unid?'<div class="hint" style="color:#D0605A">Cursed: charges build 30% slower, every use costs 10% of your current HP, and it will not come off.</div>':'')+unidHint(it)+
-    '<div class="hint">Put it on, then use it from the hotbar. Stores up to 3 charges; kills build them (elites and bosses count 3).</div>';
+    '<div class="hint">Up to 3 charges; kills build them, elites and bosses count 3.</div>';
 };
 
 /* ---------------------------------------------------------------- recharge from kills */

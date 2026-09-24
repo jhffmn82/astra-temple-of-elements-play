@@ -25,10 +25,10 @@ GODS.murk.prayers = ['raisedead','corpsefeast'];
 GODS.murk.boons = ['Life Drain: living hostile kills by you or your servant heal you 2 HP per rank, and your undead have +10% HP and damage per rank.',
                    'Undying Servants: Raise Dead brings up a Zombie Bruiser instead of a skeleton.',
                    'Lich-Mother: Raise Dead calls a Lich, and your servant rises again once when it is destroyed.'];
-GODS.reginald.rule = 'No surprise attacks and no stealth kills. Refuses Scoundrels and anyone touched by Shadow.';
+GODS.reginald.rule = 'No stealth: no striking from hiding, no striking the sleeping. Refuses Scoundrels and anyone touched by Shadow.';
 GODS.reginald.boons = ['Fair Fight: +4 accuracy, +2% crit and +10% damage against elites and bosses, per rank.',
-                       'Called Out: elites and bosses that can see you take 15% more damage from you and your allies.',
-                       'Champion: while only one enemy is in view you deal 30% more damage and take 20% less.'];
+                       "Coward's Mark: any enemy that strikes you from more than a tile away is Challenged for 5 turns: it must come to you, deals 15 / 20 / 25% less to you at ranks 3 / 4 / 5, and takes +25% from you.",
+                       'Wall of One: for each enemy adjacent to you beyond the first, you take 10% less damage and deal 10% more, up to three.'];
 GODS.anvil.boons = ['Smith’s Blessing: +1 weapon damage and enchantments 10% stronger, per rank.',
                     'Second Heat: enchanting or carving a sigil at the Forge has a 30% / 40% / 50% chance at ranks 3 / 4 / 5 to give back its motes.',
                     'Masterwork: Forge upgrades cost 30% less, and gear can be raised to +4.'];
@@ -117,7 +117,7 @@ joinGod = function(id, startPiety){
   derive(player); updateUI();
 };
 var _gainPietyRel = gainPiety;
-gainPiety = function(n, why){ var r=_gainPietyRel(n, why); syncGlimmerLight(); return r; };
+gainPiety = function(n, why){ var r=_gainPietyRel.apply(this, arguments); syncGlimmerLight(); return r; };
 var _pietyViolationRel = pietyViolation;
 pietyViolation = function(what, amount){
   var was=player.god;
@@ -152,7 +152,7 @@ var _attackRel = attack;
 attack = function(att, def, mult, label){
   var hp0 = def ? def.hp : 0;
   _attackRel(att, def, mult, label);
-  if(att===player && hasGod('grom') && player.weapon.unarmed && def && def.foe && hp0>0 && def.hp<hp0) gainPiety(1);
+  if(att===player && hasGod('grom') && player.weapon.unarmed && def && def.foe && hp0>0 && def.hp<hp0) gainPiety(1, 'punch', {pietyOnly:true});   /* piety only; favor comes from kills (DESIGN 12, step 8a) */
 };
 var _usePrayerRel = usePrayer;
 usePrayer = function(pid){

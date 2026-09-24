@@ -8,6 +8,7 @@ var STATUS_INFO = {
   /* statuses (player.st / enemy.st) */
   burn:   {name:'Burning', icon:'st-burn', bad:1, d:'Takes fire damage every turn.'},
   chill:  {name:'Chilled', icon:'st-chill', bad:1, d:'Acts more slowly; takes more ice damage.'},
+  slow:   {name:'Slowed', icon:'st-slow', bad:1, d:'Acts more slowly.'},
   frozen: {name:'Frozen', icon:'st-frozen', bad:1, d:'Can\'t act. A physical hit shatters the ice for double damage.'},
   root:   {name:'Rooted', icon:'st-root', bad:1, d:'Can\'t move, but can still attack.'},
   stun:   {name:'Stunned', icon:'st-stun', bad:1, d:'Can\'t act.'},
@@ -19,12 +20,15 @@ var STATUS_INFO = {
   hollow: {name:'Hollowed', icon:'ic-shadow-bolt', bad:1, d:'Shadow damage finds its weak spots.'},
   stone:  {name:'Stone skin', icon:'st-stone', d:'Physical hits deal 3 less damage.'},
   aura:   {name:'Unholy Aura', icon:'pr-unholyaura', d:'Enemies next to you take dark damage each turn.'},
+  /* 2026-09-23 (Justin): the Challenge and Coward's Mark show on the foe as debuffs */
+  challenged:{name:'Challenged', icon:'st-challenged', bad:1, d:'Called out: it must come to you and fight. A follower of Sir Reginald deals it +25% and, from rank 3, takes 15 / 20 / 25% less from it.'},
+  coward:    {name:"Coward's Mark", icon:'st-coward', bad:1, d:'It struck from afar and Sir Reginald marked it: it must come to you, deals 15 / 20 / 25% less to you and takes +25% from you.'},
   /* buffs (player.buffs) */
   rampage:   {name:'Rampage', icon:'pr-rampage', d:'+40% melee damage and faster attacks.'},
   ironhide:  {name:'Iron Hide', icon:'pr-ironhide', d:'+5 armor and a shield.'},
   ironbody:  {name:'Iron Body', icon:'ic-iron-body', d:'+4 armor; unarmed hits may stun.'},
-  laststand: {name:'Last Stand', icon:'pr-laststand', d:'Take 35% less damage.'},
-  rally:     {name:'Rally', icon:'pr-rally', d:'+10 accuracy.'},
+  laststand: {name:'Last Stand', icon:'pr-laststand', d:'Take half damage.'},
+  rally:     {name:'Rally', icon:'pr-rally', d:'+10% damage and spell power.'},
   temper:    {name:'Temper', icon:'ic-temper', d:'Your weapon counts as +2.'},
   arcaneward:{name:'Ward', icon:'ic-arcane-ward', d:'A ward absorbs damage.'},
   unbound:   {name:'Unbound', icon:'pr-unbound', d:'Your next spell takes no time.'},
@@ -55,6 +59,7 @@ function statusList(e){
   var out=[];
   if(!e) return out;
   for(var k in (e.st||{})){ if(k.indexOf('imm_')===0) continue; var s=e.st[k]; if(!s || !(s.t>0)) continue; out.push({k:k, t:s.t}); }
+  if(e!==player && e.challenged) out.push({k:e.cowardMark?'coward':'challenged', t:e.challengeT||0});   /* a Cleric's Challenge has no timer: 0 shows no count */
   if(e===player){
     for(var b in (player.buffs||{})) if(player.buffs[b]>0) out.push({k:b, t:player.buffs[b]});
     if(player.hidden>0) out.push({k:'hidden', t:player.hidden});
@@ -113,7 +118,7 @@ inspectHTML = function(mx, my){
   /* drop the old plain-text tag line; the icon rows replace it */
   h=h.replace(/<div style="margin-top:4px">(<span class="tag[^>]*>[^<]*<\/span>\s*)+<\/div>/, '');
   if(!list.length) return h;
-  var rows=list.map(function(s){ var url=statusIconURL(s.icon); return '<div class="tipstat">'+(url?'<img src="'+url+'" alt="">':'')+'<b class="'+(s.bad?'bad':'')+'">'+s.name+'</b><span class="t">'+s.t+' turn'+(s.t===1?'':'s')+'</span></div>'; }).join('');
+  var rows=list.map(function(s){ var url=statusIconURL(s.icon); return '<div class="tipstat">'+(url?'<img src="'+url+'" alt="">':'')+'<b class="'+(s.bad?'bad':'')+'">'+s.name+'</b>'+(s.t>0?'<span class="t">'+s.t+' turn'+(s.t===1?'':'s')+'</span>':'')+'</div>'; }).join('');
   var at=h.indexOf('<div class="odds">');
   return at>=0 ? h.slice(0,at)+rows+h.slice(at) : h+rows;
 };

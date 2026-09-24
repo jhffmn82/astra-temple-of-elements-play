@@ -83,6 +83,8 @@ function saveApply(data){
   if(typeof refreshCavernResidents==='function')refreshCavernResidents();
   if(typeof refreshEncounterTuning==='function')refreshEncounterTuning();
   if(typeof repairSavedEffectClocks==='function')repairSavedEffectClocks();
+  /* 2026-09-23 audit: the puzzle list points at entries of rooms; after a decode they must be the same objects again */
+  if(typeof floorMeta!=='undefined' && floorMeta && floorMeta.puzzles && typeof rooms!=='undefined' && rooms) floorMeta.puzzles=rooms.filter(function(r){ return r && r.puzzle; });
   /* everything derived or visual is rebuilt rather than restored */
   rng=mulberry32(Number.isInteger(data.rngState)?data.rngState:((worldSeed||1) ^ (turn*2654435761))>>>0);
   fx=[]; PARTS.length=0; aiming=null; LAST_HIT=null;
@@ -143,6 +145,26 @@ death = function(){
   if(!was && RUN && RUN.over){ runId(); if(deleteRunSaves()) log('Death is final: this character&rsquo;s saves crumble to dust.','c-you'); }
   return r;
 };
+
+/* ---------------------------------------------------------------- the original game's saves, once
+   2026-09-22 (Justin): this build goes back to the original address, jhffmn82.github.io/forge-of-the-elements-play/.
+   Both addresses share one origin, so the fote-* keys the original game wrote there (saves, rescue, key binds,
+   lighting, map zoom, animation speed, audio) sit beside the astra-temple-* keys this build reads. The first launch
+   copies each original value into its key here when that key is empty and never touches the originals; a flag makes
+   it a one-time pass, so a slot deleted afterwards stays deleted. Copied settings take effect from the next launch. */
+var LEGACY_KEYS = [['fote-save-auto','astra-temple-save-auto'],['fote-save-1','astra-temple-save-1'],['fote-save-2','astra-temple-save-2'],
+  ['fote-save-3','astra-temple-save-3'],['fote-rescue','astra-temple-rescue'],['fote-binds','astra-temple-binds'],['fote-light','astra-temple-light'],
+  ['fote-map-zoom','astra-temple-map-zoom'],['fote-anim-speed','astra-temple-anim-speed'],['fote-audio','astra-temple-audio']];
+function importLegacySaves(){
+  var copied=0;
+  try{
+    if(localStorage.getItem('astra-temple-legacy-import')) return 0;
+    LEGACY_KEYS.forEach(function(p){ var v=localStorage.getItem(p[0]); if(v!==null && localStorage.getItem(p[1])===null){ localStorage.setItem(p[1], v); copied++; } });
+    localStorage.setItem('astra-temple-legacy-import', new Date().toISOString());
+  }catch(e){}
+  return copied;
+}
+importLegacySaves();
 
 /* ---------------------------------------------------------------- slots */
 function slotKey(s){ return 'astra-temple-save-'+s; }
@@ -228,7 +250,7 @@ function openTitle(){
   if(!el){ el=document.createElement('div'); el.id='title'; document.body.appendChild(el); }
   el.classList.add('on');
   if($('create')) $('create').classList.remove('on');
-  playMusic('title');
+  playMusic('menu');   /* the vocal song; character creation plays the instrumental intro (Justin, 2026-09-22) */
   renderTitleMenu();
 }
 /* a browser only lets a page close a window it opened itself: try, and otherwise say goodbye so the tab can be closed */
@@ -239,7 +261,7 @@ function exitGame(){
     var el=$('title'); if(!el) return;
     el.innerHTML='<div class="panel" style="text-align:center"><h2>Farewell</h2><p>The forge fire banks low. Your saves are kept in this browser; close this tab or window whenever you like.</p>'+
       '<div class="panelfoot" style="justify-content:center"><button id="tBack">Back to the title</button></div></div>';
-    $('tBack').onclick=function(){ playMusic('title'); renderTitleMenu(); };
+    $('tBack').onclick=function(){ playMusic('menu'); renderTitleMenu(); };
   }, 150);
 }
 function closeTitle(){ var el=$('title'); if(el) el.classList.remove('on'); }
@@ -255,11 +277,13 @@ function renderTitleMenu(){
     '<button id="tNew">New Game</button>'+
     '<button id="tLoad">Load Game</button>'+
     '<button id="tAbout">About</button>'+
+    '<button id="tUpdate">Update</button>'+   /* 2026-09-22 (Justin): installed clients pull the latest build by hand */
     '<button id="tExit">Exit Game</button></div>';
   if($('tContinue')) $('tContinue').onclick=function(){ audioInit(); loadFrom(last); };
   $('tNew').onclick=function(){ audioInit(); sfx('ui-click'); closeTitle(); openCreate(); };
   $('tLoad').onclick=function(){ audioInit(); sfx('ui-click'); renderLoadPanel(); };
   $('tAbout').onclick=function(){ audioInit(); sfx('ui-click'); renderAbout(); };
+  $('tUpdate').onclick=function(){ audioInit(); sfx('ui-click'); if(typeof forceUpdate==='function') forceUpdate($('tUpdate')); };
   $('tExit').onclick=exitGame;
   var first=el.querySelector('.menu button'); if(first) first.focus();
 }
@@ -286,9 +310,11 @@ function renderLoadPanel(){
 function renderAbout(){
   var el=$('title');
   el.innerHTML='<div class="panel"><h2>About</h2>'+
-    '<p><b>Forge of the Elements</b> is a turn-based roguelike. Pick a race and a class, descend through the Dungeon, carry elemental motes to the Forge to shape your gear and your magic, swear yourself to a god, and bring down Grukk the Warchief.</p>'+
+    '<p><b>Forge of the Elements</b> is a turn-based roguelike. Pick a race and a class and descend twenty floors: the Dungeon, the Crypt, the Caverns and the Underdark, each held by its own lord, with portals to the six elemental planes along the way. Carry elemental motes to the Forge to shape your gear and your magic, swear yourself to a god, and take at most two elements into yourself.</p>'+
     '<p>Everything happens in turns: you act, then the dungeon answers. Hover anything for details. Tab opens your character, I your gear, P your faith, Esc closes windows. Key bindings, sound, lighting and animation speed live in the Options tab, along with saving.</p>'+
-    '<p>This is a work in progress: biome 1, the Dungeon, is playable.</p>'+
+    '<h3>Credits</h3>'+
+    '<p>Created by <b>Justin Hoffman</b>: design, story, world, balance, and the direction of every creature, map and sound in it. The title theme, <i>Strike the Steel</i>, and the end-credits song, <i>To Bind the Flame</i>, are written by Justin.</p>'+
+    '<p>Creature and map art painted to his direction with ChatGPT image generation and brought to life with PixelLab; score with Google Lyria; sound effects with ElevenLabs; code written with Claude and OpenAI Codex. Storybook in spirit, hand-picked throughout.</p>'+
     '<div class="panelfoot"><span></span><button id="tBack">Back</button></div></div>';
   $('tBack').onclick=renderTitleMenu;
 }

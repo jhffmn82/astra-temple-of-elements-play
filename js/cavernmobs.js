@@ -22,13 +22,13 @@ function inCaverns(){ return typeof bidx==='function' && bidx()===2 && !(floorMe
   M.sparkjelly    = {name:'Spark Jelly', sprite:'m-spark-jelly', col:'#8FD8FF', ch:'j', hp:48, dmg:[4,6], acc:66, eva:28, armor:0, speed:100, range:1, xp:36,
                      band:[12,15], w:12, flying:true, erratic:true, stingChain:true, el:'air', glow:'#7FD0FF', living:true, art:0.85, sfx:'bat'};
   M.shockeel      = {name:'Shock Eel', sprite:'m-shock-eel', col:'#3F7A6A', ch:'e', hp:55, dmg:[6,9], acc:66, eva:18, armor:1, speed:100, range:1, xp:40,
-                     band:[11,14], w:0, aquatic:true, el:'water', living:true, art:0.95, artLeft:true, sfx:'slime'};   /* w:0 - placed in water by eelPlacement() */
+                     band:[11,14], w:0, aquatic:true, el:'air', living:true, art:0.95, artLeft:true, sfx:'slime'};   /* w:0 - placed in water by eelPlacement() */
   M.myconid       = {name:'Myconid', sprite:'m-myconid', col:'#7FA8A0', ch:'f', hp:55, dmg:[6,9], acc:60, eva:10, armor:1, speed:100, range:1, xp:38,
                      band:[11,15], w:16, spores:true, sporeproof:true, el:'earth', living:true, spellcaster:true, art:0.95, sfx:'shaman'};
   M.shroomling    = {name:'Shroomling', sprite:'m-myconid', col:'#9FC0B0', ch:'f', hp:18, dmg:[4,6], acc:58, eva:12, armor:0, speed:100, range:1, xp:6,
                      band:[0,0], w:0, sporeproof:true, living:true, art:0.5, sfx:'slime'};
   M.crystalcrawler= {name:'Crystal Crawler', sprite:'m-crystal-crawler', col:'#8A6AD0', ch:'c', hp:50, dmg:[6,9], acc:68, eva:20, armor:3, speed:130, range:1, xp:38,
-                     band:[13,15], w:9, shatters:true, el:'earth', art:0.95, artLeft:true, sfx:'rat'};   /* the Caverns' one fast creature */
+                     band:[13,15], w:9, shatters:true, el:'earth', art:0.95, artLeft:true, sfx:'spider'};   /* the Caverns' one fast creature */
   /* Biome-three versions of the Dungeon vermin; the originals stay on floors 1-5. */
   M.caverat       = Object.assign({}, M.rat, {name:'Cave Rat',hp:38,dmg:[6,9],acc:66,eva:24,speed:135,xp:30,art:.85,band:[11,13],w:8});
   M.cavebat       = Object.assign({}, M.bat, {name:'Grotto Bat',hp:30,dmg:[4,6],acc:66,eva:28,speed:130,xp:28,art:.85,band:[11,12], w:8});
@@ -36,7 +36,7 @@ function inCaverns(){ return typeof bidx==='function' && bidx()===2 && !(floorMe
   delete M.caverat.biome; delete M.cavebat.biome; delete M.caveslime.biome;
   /* The Deep Maw: tuned by hand for floor 15, so no floor curve (fixed, like the plane elites) */
   M.deepmaw       = {name:'The Deep Maw', sprite:'m-deep-maw', col:'#B07A4A', ch:'W', hp:480, dmg:[12,17], acc:70, eva:0, armor:4, speed:100, range:1, xp:600,
-                     band:[15,15], w:0, boss:true, elite:true, big:2, fixed:true, living:true, art:2.0, bigScale:1.5, artLeft:true, sfx:'brute'};
+                     band:[15,15], w:0, boss:true, elite:true, big:2, fixed:true, heavy:true, living:true, art:2.0, bigScale:1.5, artLeft:true, sfx:'maw'};
   M.mawlimb       = {name:'The Deep Maw', sprite:'m-deep-maw', col:'#B07A4A', ch:'W', hp:9999, dmg:[0,0], acc:0, eva:0, armor:4, speed:100, range:0, xp:0,
                      band:[0,0], w:0, object:true, fixed:true, art:0.1};
   DROPS.stormbeetle   = {chance:0.20, table:{essence:10, gear:3, sigil:1}};
@@ -284,8 +284,10 @@ endTurn = function(){
   _endTurnCaveSpores();
   if(!floorMeta || !player || player.hp<=0 || typeof cloudAt!=='function') return;
   var c=cloudAt(idxOf(player.x,player.y));
-  if(c && c.src==='spores' && !player.st.chill && !player.st.frozen && !(typeof aff==='function' && aff('earth')>=6)){
-    player.st.chill={t:2, n:1}; floatText(player.x,player.y,'slowed','poison');
+  /* 2026-09-22 (Justin): spores slow, they do not chill - a real Slowed status through applyStatus, so Unstoppable
+     refuses it and it wears its own icon rather than the snowflake */
+  if(c && c.src==='spores' && !player.st.slow && !player.st.frozen && !(typeof aff==='function' && aff('earth')>=6)){
+    var before=player.st.slow; applyStatus(player,'slow',2); if(player.st.slow && player.st.slow!==before){ player.st.slow.mult=0.8; floatText(player.x,player.y,'slowed','poison'); }   /* 20% slower, about what one chill stack did */
   }
 };
 
@@ -516,7 +518,7 @@ function mawErupt(M){
   });
   ringFx(s.x+1, s.y+1, '#C08A50', 3);
   M.phase='up'; M.at=turn+(hurt ? MAW.upTurnsHurt : MAW.upTurns); M.n++;
-  log('<b>The Deep Maw</b> bursts out of the ground! Hit it before it dives again.','c-you');
+  log('<b>The Deep Maw</b> bursts out of the ground! Hit it before it dives again.','c-you'); sfx('maw-intro');
 }
 function mawDive(M){
   var e=M.ent;

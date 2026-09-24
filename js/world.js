@@ -260,7 +260,7 @@ function generateOnce(seed){
   /* ---- terrain patches ---- */
   var gn=ri(2,4); for(i=0;i<gn;i++){ var gr=pick(rooms); blob(gr.x+ri(0,gr.w-1), gr.y+ri(0,gr.h-1), ri(5,14), function(xx,yy){ if(at(xx,yy)===FLOOR && !gAt(xx,yy) && !propAt(xx,yy)) setG(xx,yy,G_GRASS); }); }
   var wn=ri(1,2); for(i=0;i<wn;i++){ var wr=pick(rooms.filter(function(r){ return r.role!=='start' && r.role!=='boss'; }))||pick(rooms);
-    blob(wr.x+ri(1,Math.max(1,wr.w-2)), wr.y+ri(1,Math.max(1,wr.h-2)), ri(3,8), function(xx,yy){ if(at(xx,yy)===FLOOR && !propAt(xx,yy)) { setT(xx,yy,WATER); setG(xx,yy,0); } }); }
+    blob(wr.x+ri(1,Math.max(1,wr.w-2)), wr.y+ri(1,Math.max(1,wr.h-2)), ri(3,8), function(xx,yy){ if(at(xx,yy)===FLOOR && !propAt(xx,yy) && gAt(xx,yy)!==G_TELL) { setT(xx,yy,WATER); setG(xx,yy,0); } }); }   /* the uneven-stone hint beside a hidden door survives a pool (2026-09-23 audit) */
   for(i=0;i<8;i++){ var pr=pick(rooms), px=pr.x+ri(0,pr.w-1), py=pr.y+ri(0,pr.h-1); if(at(px,py)===FLOOR && !gAt(px,py)) setG(px,py,pick([G_PUDDLE,G_MOSS,G_MOSS,G_BONES,G_BLOOD])); }
 
   /* ---- chests ---- */
@@ -286,8 +286,9 @@ function generateOnce(seed){
   for(i=0;i<3;i++) drop({kind:'essence', n:ri(5,12)+floorNo*2});
   drop(randomGear()); if(rng()<0.6) drop(randomGear());
   if(rng()<0.25) drop({kind:'sigil', use:randomSigilUse()});   /* about one loose sigil every other floor; chests, crates and monsters add the rest */
-  /* food is meant to be a little scarce: about one meal a floor, so hunger nudges you downward */
-  if(rng()<0.45) drop({kind:'food', food: randomFood()});
+  /* 2026-09-22 (Justin, starving all game): one meal on every floor and a 45% chance of a second. Hunger is a
+     reason to keep moving, not a clock you lose to; the meals themselves are unchanged (a Ration is 47%). */
+  drop({kind:'food', food: randomFood()}); if(rng()<0.45) drop({kind:'food', food: randomFood()});
   ((biomePlan().motes||{})[floorNo]||[]).forEach(function(el){ drop({kind:'mote', el:el}); });
 
   /* ---- start ---- */

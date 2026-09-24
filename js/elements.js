@@ -19,8 +19,8 @@ var AOE_BASE = [14,22];
 ABILITIES.fireball    = {name:'Fireball', cost:35, kind:'blast', range:6, radius:2, type:'fire', el:'fire', icon:'ic-fireball', desc:'Pick a tile in sight: a 5x5 blast of fire damage that sets everything in it Burning.'};
 ABILITIES.frostcone   = {name:'Frost Cone', cost:35, kind:'cone', range:6, type:'ice', el:'water', icon:'ic-tidal-surge', desc:'A 45-degree cone of ice 6 tiles long: damage, Chill, and a 1-tile knockback.'};
 ABILITIES.chainbolt   = {name:'Chain Lightning', cost:35, kind:'chain', range:6, type:'lightning', el:'air', icon:'ic-chain-lightning', desc:'Lightning jumps from the target to 4 more enemies within 3 tiles, each jump 75% of the last.'};
-ABILITIES.earthquake  = {name:'Earthquake', cost:35, kind:'quake', radius:3, type:'phys', el:'earth', icon:'ic-earthquake', desc:'The ground heaves 3 tiles around you: physical damage to everything but you, your own summons included.'};
-ABILITIES.radiantbeam = {name:'Radiant Beam', cost:35, kind:'beam', range:6, type:'light', el:'light', icon:'ic-radiant-lance', desc:'A beam 3 tiles wide along a row, column or diagonal: light damage (+50% to undead and shadow), 25% Blind.'};
+ABILITIES.earthquake  = {name:'Earthquake', cost:35, kind:'quake', radius:5, type:'phys', el:'earth', icon:'ic-earthquake', desc:'The ground heaves 5 tiles around you: physical damage to everything but you, your own summons included.'};   /* DESIGN: radius 5 (Justin, 2026-09-22: it was 3) */
+ABILITIES.radiantbeam = {name:'Radiant Beam', cost:35, kind:'beam', range:6, type:'light', el:'light', icon:'ic-radiant-lance', desc:'A beam 3 tiles wide along a row, column or diagonal: light damage (+50% to undead and shadow), 5% Blind per Light point.'};
 ABILITIES.shadowswarm = {name:'Shadow Swarm', cost:35, kind:'swarm', range:6, type:'dark', el:'shadow', icon:'ic-shadow-swarm', desc:'Fill a 3x3 area with shadows (3 HP, 2 damage per Shadow point) that stall enemies for 6 turns.'};
 ABILITIES.livingflame = {name:'Living Flame', cost:50, kind:'lflame', range:6, type:'fire', el:'fire', icon:'ic-living-flame', desc:'Call a fire elemental onto a tile: it scorches enemies beside it as it lands and hurls fire (range 6) for 20 turns. Grows with Focus; counts toward the 2-summon limit.'};
 ABILITIES.glacialtomb = {name:'Glacial Tomb', cost:50, kind:'tomb', range:6, type:'ice', el:'water', icon:'ic-glacial-tomb', desc:'Encase an enemy in ice: it cannot act or be hurt for 10 turns (6 for elites, 2 for bosses). Target yourself for 3 untouchable turns of regeneration.'};
@@ -36,7 +36,7 @@ var RANK_TEXT = {
   3:{fire:'Searing: Burning enemies take 15% more damage from you. Immune to Burning.',
      water:'Shatter: Frozen enemies take a further +50% physical damage. Immune to Chill and Freeze.',
      air:'Arc: 5% per Air point that any hit or spell arcs to a nearby enemy for 50%. Immune to Stun.',
-     earth:'Venom: anything you Root is poisoned as it is pinned (10% of max HP a turn for 3 turns; half on elites and bosses). Immune to Root.',
+     earth:'Venom: anything you Root is poisoned as it is pinned (10% of max HP a turn; half on bosses). Immune to Root.',
      light:'Radiance: heal 1 HP per Light point whenever you deal light damage. Immune to Blind.',
      shadow:'Fade: after 50 turns out of combat you are fully hidden. Immune to Fear.'},
   6:{fire:'Wildfire: when a Burning enemy dies its fire leaps to the nearest enemy within 3. Fire spells leave flames for 3 turns. Immune to fire.',
@@ -101,20 +101,22 @@ applyStatus = function(e, key, turns, extra){
 addChill = function(e){
   if(!e || e.hp<=0) return;
   if(e===player && aff('water')>=3) return;
+  if(e===player && hasP('unstoppable')) return;                       /* nothing holds an Unstoppable fighter (2026-09-22) */
   if(e.tomb>0) return;
-  var need = 3;
+  /* 2026-09-22 audit: four chills freeze; Water 6 "Deep Freeze: three Chills freeze" is the rank that lowers it */
+  var need = e===player ? 3 : (aff('water')>=6 ? 3 : 4);
   var c=e.st.chill, n=(c?c.n:0)+1;
   if(n>=need && !(e.st.imm_frozen)){ delete e.st.chill; applyStatus(e,'frozen',2); if(e!==player) e.st.imm_frozen={t:5}; sfx('status-freeze'); floatText(e.x,e.y,'frozen','ice'); }
-  else e.st.chill={t:4, n:Math.min(n, need-1),waterRank:e===player?0:aff('water')};
+  else e.st.chill={t:(e===player && hasP('ironConst'))?2:4, n:Math.min(n, need-1),waterRank:e===player?0:aff('water')};   /* Iron Constitution halves a chill too */
 };
-function applyPoison(e, announce){
+function applyPoison(e, announce, turns){
   if(!e || e.hp<=0 || e===player) return;
   var big=e.base && e.base.boss;
-  /* 3 turns of its own: once it is in, the root wearing off does not stop it (2026-09-17) */
-  e.st.poison={t:Math.min(3,Math.max(1,aff('earth')-2)), d:Math.max(1, Math.round(e.maxhp*0.10*(big?0.5:1)))};
+  /* once it is in, the root wearing off does not stop it (2026-09-17); a caller may set the duration (Venom Strike: 3) */
+  e.st.poison={t:turns || Math.min(3,Math.max(1,aff('earth')-2)), d:Math.max(1, Math.round(e.maxhp*0.10*(big?0.5:1)))};
   if(announce){
     if(typeof floatText==='function') floatText(e.x, e.y, 'poisoned', 'poison');
-    if(typeof log==='function' && vis[idxOf(e.x,e.y)]) log('<b>Venom.</b> The rooted '+e.name+' is poisoned: '+e.st.poison.d+' a turn for 3 turns.','c-good');
+    if(typeof log==='function' && vis[idxOf(e.x,e.y)]) log('<b>Venom.</b> The rooted '+e.name+' is poisoned: '+e.st.poison.d+' a turn for '+e.st.poison.t+' turn'+(e.st.poison.t===1?'':'s')+'.','c-good');
   }
 }
 
@@ -230,8 +232,14 @@ endTurn = function(){
 function spellRoll(A){ var b=sDMG(roll(AOE_BASE[0],AOE_BASE[1])) + (aff('fire') && !A.divine ? aff('fire') : 0); return Math.round(b*spellPower(A)); }
 function spellHit(f, A, amount, type){
   if(!f || f.hp<=0) return 0;
-  var crit = combatRoll(player.crit + (!A.tech && hasP('archmage')?0.05:0),true), base=amount;
+  /* 2026-09-23 (design-log audit): the bolt path had these three and the area spells did not. Night's Edge crit
+     against the unaware (DESIGN 12, step 6f), Numbing Dark's x1.5 on a Chilled target (step 7), and the Shadow
+     orb's bonus below half HP (step 5f), which spellPower only sees for an aimed bolt. */
+  var unaware = (typeof offGuard==='function' ? offGuard(f) : f.state==='asleep') || (f.st && (f.st.stun || f.st.frozen)) || player.hidden>0;
+  var crit = combatRoll(player.crit + (!A.tech && hasP('archmage')?0.05:0) + (unaware && player.aff.shadow ? 0.05*player.aff.shadow : 0),true), base=amount;
   if(crit){base=Math.round(base*1.6);if(typeof gainAmusement==='function')gainAmusement(1);}
+  if(typeof numbingDark==='function' && numbingDark(f)) base=Math.round(base*1.5);
+  if(typeof infusion==='function' && infusion('orb')==='shadow' && !player._spellTarget && f.hp < f.maxhp/2) base=Math.round(base*(1+0.10+0.03*aff('shadow')));
   LAST_HIT={att:player, def:f, crit:crit, surprise:(typeof offGuard==='function' ? offGuard(f) : f.state==='asleep')||player.hidden>0, spell:true};
   if(A.el==='light' && (f.base.undead||f.base.shadowy)) base=Math.round(base*1.5);
   if(f.state!=='hunt' && f.state!=='throne') f.state='hunt';
